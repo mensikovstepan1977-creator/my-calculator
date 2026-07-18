@@ -11623,13 +11623,36 @@ function syncSplitComparisonRows() {
     if (max > 0) pair.forEach(tr => { tr.style.setProperty('height', Math.ceil(max) + 'px', 'important'); });
   }
 }
+/* ── Мобильный «Итого» без Беларуси: вся выдача + кнопки на одном экране ──
+   Измеряем реальную геометрию (шрифты iOS выше headless-эталонов) и
+   ступенями (fit-tight-1…4) уплотняем строки, пока всё не поместится.
+   В режиме сравнения с Беларусью прокрутка разрешена — не трогаем.   */
+function fitSingleMobileResult() {
+  try {
+    if (window.innerWidth > 900) return;
+    const bodyEl = document.body;
+    if (!bodyEl.classList.contains('mobile-final-result') || bodyEl.classList.contains('expense-keyboard-open')) return;
+    const split = document.querySelector('#main .result-split');
+    if (!split || split.classList.contains('has-split')) return;
+    const card = split.closest('.result-card');
+    const body = split.querySelector('.result-body');
+    if (!card || !body) return;
+    card.classList.remove('fit-tight-1', 'fit-tight-2', 'fit-tight-3', 'fit-tight-4');
+    let level = 0;
+    while (level < 4 && body.scrollHeight > body.clientHeight + 2) {
+      level++;
+      card.classList.add('fit-tight-' + level);
+    }
+  } catch (e) {}
+}
+function runResultLayoutAdjustments() { syncSplitComparisonRows(); fitSingleMobileResult(); }
 let splitRowsSyncRaf = 0, splitRowsSyncT1 = 0, splitRowsSyncT2 = 0, splitRowsSyncT3 = 0;
 function scheduleSplitRowsSync() {
   cancelAnimationFrame(splitRowsSyncRaf);
-  splitRowsSyncRaf = requestAnimationFrame(() => syncSplitComparisonRows());
-  clearTimeout(splitRowsSyncT1); splitRowsSyncT1 = setTimeout(syncSplitComparisonRows, 170);
-  clearTimeout(splitRowsSyncT2); splitRowsSyncT2 = setTimeout(syncSplitComparisonRows, 420);
-  clearTimeout(splitRowsSyncT3); splitRowsSyncT3 = setTimeout(syncSplitComparisonRows, 900);
+  splitRowsSyncRaf = requestAnimationFrame(() => runResultLayoutAdjustments());
+  clearTimeout(splitRowsSyncT1); splitRowsSyncT1 = setTimeout(runResultLayoutAdjustments, 170);
+  clearTimeout(splitRowsSyncT2); splitRowsSyncT2 = setTimeout(runResultLayoutAdjustments, 420);
+  clearTimeout(splitRowsSyncT3); splitRowsSyncT3 = setTimeout(runResultLayoutAdjustments, 900);
 }
 window.addEventListener('resize', scheduleSplitRowsSync, { passive: true });
 
@@ -13124,13 +13147,14 @@ window.addEventListener('DOMContentLoaded', function() {
     border-spacing:0 4px !important;
   }
   body.mobile-final-result .result-body tbody{height:auto !important}
-  body.mobile-final-result .result-body col.rc-col-label{width:66% !important}
-  body.mobile-final-result .result-body col.rc-col-value{width:34% !important}
+  body.mobile-final-result .result-body col.rc-col-label{width:64% !important}
+  body.mobile-final-result .result-body col.rc-col-value{width:36% !important}
   body.mobile-final-result .result-body tr.header{height:auto !important}
   body.mobile-final-result .result-body tr.header td{height:auto !important;padding:8px 7px 3px 1px !important}
   /* Страховка: текст ячеек не вылезает наружу. */
   body.mobile-final-result .result-body td{overflow:hidden !important;text-overflow:ellipsis !important}
-  body.mobile-final-result .result-body td{padding-top:6px !important;padding-bottom:6px !important}
+  body.mobile-final-result .result-body td{padding:6px 10px !important}
+  body.mobile-final-result .result-body tr.header td{padding-left:1px !important;padding-right:12px !important}
   body.mobile-final-result .result-body small{line-height:1.2 !important;margin-top:1px !important}
 
   /* Строки расходов — компактнее (был min-height 40–42px + input 34px).
@@ -13189,7 +13213,45 @@ window.addEventListener('DOMContentLoaded', function() {
   .scb-item .scb-badge{font-size:9px;font-weight:900;line-height:1;padding:2px 7px;border-radius:999px;white-space:nowrap}
   .scb-item.active{border-color:#76a9cf;box-shadow:0 0 0 2px rgba(118,173,210,.38),inset 0 1px 0 #fff}
   .scb-item:active{transform:scale(.985)}
+
+  /* ── Ступени адаптивной плотности: одна страна = один экран без прокрутки.
+        Классы ставит fitSingleMobileResult() по реальной геометрии. ── */
+  body.mobile-final-result .result-card.fit-tight-1 .result-body table{border-spacing:0 3px !important}
+  body.mobile-final-result .result-card.fit-tight-1 .result-body td{padding-top:4px !important;padding-bottom:4px !important;padding-left:9px !important;padding-right:9px !important}
+  body.mobile-final-result .result-card.fit-tight-1 .result-body tr.header td{padding-top:6px !important}
+
+  body.mobile-final-result .result-card.fit-tight-2 .result-body col.rc-col-label{width:62% !important}
+  body.mobile-final-result .result-card.fit-tight-2 .result-body col.rc-col-value{width:38% !important}
+  body.mobile-final-result .result-card.fit-tight-2 .result-body table{border-spacing:0 2px !important}
+  body.mobile-final-result .result-card.fit-tight-2 .result-body td{padding-top:3px !important;padding-bottom:3px !important;padding-left:8px !important;padding-right:8px !important;font-size:10.7px !important;line-height:1.06 !important}
+  body.mobile-final-result .result-card.fit-tight-2 .result-body td:last-child{font-size:10.8px !important}
+  body.mobile-final-result .result-card.fit-tight-2 .result-body small{font-size:7.9px !important;line-height:1.08 !important}
+  body.mobile-final-result .result-card.fit-tight-2 .result-body tr.header td{padding-top:4px !important;font-size:8.3px !important}
+  body.mobile-final-result .result-card.fit-tight-2 .result-expense-control input{height:24px !important;min-height:24px !important;font-size:12.5px !important}
+
+  body.mobile-final-result .result-card.fit-tight-3 .result-card-header{padding-top:6px !important;padding-bottom:4px !important}
+  body.mobile-final-result .result-card.fit-tight-3 .result-total{font-size:28px !important}
+  body.mobile-final-result .result-card.fit-tight-3 .result-body col.rc-col-label{width:62% !important}
+  body.mobile-final-result .result-card.fit-tight-3 .result-body col.rc-col-value{width:38% !important}
+  body.mobile-final-result .result-card.fit-tight-3 .result-body table{border-spacing:0 2px !important}
+  body.mobile-final-result .result-card.fit-tight-3 .result-body td{padding-top:2px !important;padding-bottom:2px !important;padding-left:8px !important;padding-right:8px !important;font-size:10.2px !important;line-height:1.04 !important}
+  body.mobile-final-result .result-card.fit-tight-3 .result-body td:last-child{font-size:10.3px !important}
+  body.mobile-final-result .result-card.fit-tight-3 .result-body small{font-size:7.5px !important;line-height:1.04 !important;margin-top:0 !important}
+  body.mobile-final-result .result-card.fit-tight-3 .result-body tr.header td{padding-top:3px !important;font-size:8px !important}
+  body.mobile-final-result .result-card.fit-tight-3 .result-expense-control input{height:23px !important;min-height:23px !important;font-size:12px !important}
+
+  /* 4 — крайняя ступень для очень низких экранов: прячем строки-пояснения. */
+  body.mobile-final-result .result-card.fit-tight-4 .result-card-header{padding-top:5px !important;padding-bottom:3px !important}
+  body.mobile-final-result .result-card.fit-tight-4 .result-total{font-size:25px !important}
+  body.mobile-final-result .result-card.fit-tight-4 .result-body col.rc-col-label{width:62% !important}
+  body.mobile-final-result .result-card.fit-tight-4 .result-body col.rc-col-value{width:38% !important}
+  body.mobile-final-result .result-card.fit-tight-4 .result-body table{border-spacing:0 2px !important}
+  body.mobile-final-result .result-card.fit-tight-4 .result-body td{padding-top:2px !important;padding-bottom:2px !important;padding-left:7px !important;padding-right:7px !important;font-size:9.6px !important;line-height:1.02 !important}
+  body.mobile-final-result .result-card.fit-tight-4 .result-body td:last-child{font-size:9.7px !important}
+  body.mobile-final-result .result-card.fit-tight-4 .result-body small{display:none !important}
+  body.mobile-final-result .result-card.fit-tight-4 .result-body tr.header td{padding-top:2px !important;font-size:7.6px !important}
+  body.mobile-final-result .result-card.fit-tight-4 .result-expense-control input{height:22px !important;min-height:22px !important;font-size:11.5px !important}
 }
 </style>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1d4d7de9ae68dcb',t:'MTc4NDQxMjkwNw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
