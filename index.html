@@ -4383,7 +4383,8 @@ html{background:#eef3f7!important}
 }
 .original-photo-gallery-grid a{position:relative;display:block;min-width:0;height:clamp(105px,33vw,180px);background:#e2e8ec;overflow:hidden;border-radius:7px}
 .original-photo-gallery-grid img{display:block;width:100%;height:100%;object-fit:cover}
-.original-photo-gallery-grid span{position:absolute;right:5px;bottom:5px;padding:2px 5px;border-radius:5px;background:rgba(255,255,255,.88);color:#294a63;font-size:10px;font-weight:800}
+.original-photo-gallery-grid span{position:absolute;right:5px;top:5px;padding:2px 5px;border-radius:5px;background:rgba(255,255,255,.88);color:#294a63;font-size:10px;font-weight:800}
+.original-photo-gallery-grid em{position:absolute;left:5px;right:5px;bottom:5px;padding:5px;border-radius:6px;background:rgba(255,255,255,.92);color:#294a63;font-size:10px;font-style:normal;font-weight:850;text-align:center}
 
 /* iPhone SE: use the full visual viewport with readable, not microscopic rows. */
 @media(max-width:900px){.desktop-photo-export{display:none!important}}
@@ -5611,7 +5612,7 @@ async function autoLoadAllRates() {
 }
 
 // ═════════════════ СТЕЙТ ═════════════════
-const APP_BUILD = '2026.07.18-CENTER-FAST-PHOTOS-63';
+const APP_BUILD = '2026.07.18-IOS14-ALL-PHOTOS-ZIP-68';
 const state = {
   country: null, year: null, month: null,
   engineType: null, cc: null, hp: null, kw: null, powerSource: null,
@@ -8038,6 +8039,49 @@ async function loadOriginalPhotoFiles(photos, onProgress) {
   await Promise.all(workers);
   return results.filter(Boolean);
 }
+
+// Минимальный ZIP Store без сжатия и без внешней библиотеки. Используется
+// исключительно на iOS 14, где Safari не умеет передавать несколько File.
+let ZIP_CRC_TABLE=null;
+function zipCrc32(bytes){
+  if(!ZIP_CRC_TABLE){ZIP_CRC_TABLE=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;ZIP_CRC_TABLE[n]=c>>>0}}
+  let crc=0xFFFFFFFF;for(let i=0;i<bytes.length;i++)crc=ZIP_CRC_TABLE[(crc^bytes[i])&255]^(crc>>>8);return(crc^0xFFFFFFFF)>>>0
+}
+function zipDosDateTime(date){
+  date=date||new Date();const year=Math.max(1980,date.getFullYear());
+  return{time:(date.getHours()<<11)|(date.getMinutes()<<5)|(date.getSeconds()>>1),date:((year-1980)<<9)|((date.getMonth()+1)<<5)|date.getDate()}
+}
+function zipHeader(size,writer){const buf=new Uint8Array(size),view=new DataView(buf.buffer);writer(view);return buf}
+async function createStoreZip(files,folderName){
+  const encoder=new TextEncoder(),locals=[],centrals=[];let offset=0;
+  const safeFolder=String(folderName||'Фото автомобиля').replace(/[\\:*?"<>|]+/g,' ').trim();
+  for(let i=0;i<files.length;i++){
+    const file=files[i],data=new Uint8Array(await file.arrayBuffer()),name=encoder.encode(safeFolder+'/'+(file.name||String(i+1).padStart(2,'0')+'.jpg'));
+    const crc=zipCrc32(data),dt=zipDosDateTime(new Date(file.lastModified||Date.now()));
+    const local=zipHeader(30,v=>{v.setUint32(0,0x04034b50,true);v.setUint16(4,20,true);v.setUint16(6,0x0800,true);v.setUint16(8,0,true);v.setUint16(10,dt.time,true);v.setUint16(12,dt.date,true);v.setUint32(14,crc,true);v.setUint32(18,data.length,true);v.setUint32(22,data.length,true);v.setUint16(26,name.length,true);v.setUint16(28,0,true)});
+    locals.push(local,name,data);
+    const central=zipHeader(46,v=>{v.setUint32(0,0x02014b50,true);v.setUint16(4,20,true);v.setUint16(6,20,true);v.setUint16(8,0x0800,true);v.setUint16(10,0,true);v.setUint16(12,dt.time,true);v.setUint16(14,dt.date,true);v.setUint32(16,crc,true);v.setUint32(20,data.length,true);v.setUint32(24,data.length,true);v.setUint16(28,name.length,true);v.setUint16(30,0,true);v.setUint16(32,0,true);v.setUint16(34,0,true);v.setUint16(36,0,true);v.setUint32(38,0,true);v.setUint32(42,offset,true)});
+    centrals.push(central,name);offset+=local.length+name.length+data.length;
+  }
+  const centralOffset=offset,centralSize=centrals.reduce((s,x)=>s+x.length,0);
+  const end=zipHeader(22,v=>{v.setUint32(0,0x06054b50,true);v.setUint16(4,0,true);v.setUint16(6,0,true);v.setUint16(8,files.length,true);v.setUint16(10,files.length,true);v.setUint32(12,centralSize,true);v.setUint32(16,centralOffset,true);v.setUint16(20,0,true)});
+  return new Blob([...locals,...centrals,end],{type:'application/zip'});
+}
+async function downloadLegacyIOSPhotosZip(){
+  const pd=state.parsedData,photos=pd&&Array.isArray(pd.photos)?pd.photos.filter(Boolean):[];
+  if(!photos.length){alert('Нет фото для скачивания');return}
+  const btn=document.getElementById('downloadPhotosBtn'),orig=btn&&btn.textContent;
+  if(btn){btn.disabled=true;btn.style.opacity='.72';btn.textContent=`Загружаем фото 0/${photos.length}`}
+  try{
+    const files=await loadOriginalPhotoFiles(photos,(n,total)=>{if(btn)btn.textContent=`Загружаем фото ${n}/${total}`});
+    if(!files.length)throw new Error('фотографии недоступны');
+    if(btn)btn.textContent='Создаём папку…';
+    const folder=originalPhotoFolderName(pd),blob=await createStoreZip(files,folder),url=URL.createObjectURL(blob),a=document.createElement('a');
+    a.href=url;a.download=folder+'.zip';a.style.display='none';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
+    if(btn)btn.textContent=`Скачано фото: ${files.length}`;
+  }catch(e){console.warn('[ios14 zip]',e);alert('Не удалось скачать все фото: '+e.message);ensureOriginalPhotoGallery(photos)}
+  finally{setTimeout(()=>{if(btn){btn.disabled=false;btn.style.opacity='';btn.textContent=orig||`Скачать все фото ZIP (${photos.length})`}},1800)}
+}
 let mobileOriginalPhotoCache={signature:'',files:[],loading:null,title:''};
 function photoListSignature(photos){return photos.join('|')}
 function originalPhotoFolderName(pd) {
@@ -8054,8 +8098,22 @@ function canUseDirectoryPhotoExport() {
 function desktopPhotoExportLabel() {
   return 'Скачать все фото';
 }
+function detectedIOSMajorVersion() {
+  const ua=String(navigator.userAgent||'');
+  const m=ua.match(/(?:iPhone OS|CPU(?: iPhone)? OS)\s*(\d+)[_\.]/i);
+  if(m)return Number(m[1])||0;
+  // iPadOS иногда маскируется под macOS.
+  if(/Macintosh/i.test(ua)&&navigator.maxTouchPoints>1){
+    const v=ua.match(/Version\/(\d+)/i);return v?Number(v[1])||0:0;
+  }
+  return 0;
+}
 function supportsNativePhotoFileShare() {
   try{
+    // Safari iOS 14 может ошибочно отвечать true на canShare(), но передача
+    // массива File там нестабильна или отсутствует. Не запускаем долгую подготовку.
+    const ios=detectedIOSMajorVersion();
+    if(ios&&ios<15)return false;
     if(!navigator.share||!navigator.canShare||typeof File!=='function')return false;
     const probe=new File([new Uint8Array([0])],'photo.jpg',{type:'image/jpeg'});
     return !!navigator.canShare({files:[probe]});
@@ -8066,6 +8124,10 @@ function canNativeSharePhotoFiles(files) {
 }
 function updateReportPhotoButton() {
   const btn=document.getElementById('downloadPhotosBtn');if(!btn||!isMobilePhotoTarget())return;
+  const ios=detectedIOSMajorVersion(),n=state.parsedData&&state.parsedData.photos?state.parsedData.photos.length:0;
+  if(ios&&ios<15){
+    btn.disabled=false;btn.style.opacity='';btn.textContent=`Скачать все фото ZIP (${n})`;return;
+  }
   const files=mobileOriginalPhotoCache.files||[];
   if(canNativeSharePhotoFiles(files)){
     btn.disabled=false;btn.style.opacity='';btn.textContent=`Сохранить фото в Файлы (${files.length})`;
@@ -8125,7 +8187,7 @@ function ensureOriginalPhotoGallery(photos) {
   let modal=document.getElementById('originalPhotoGallery');
   if(!modal){
     modal=document.createElement('div');modal.id='originalPhotoGallery';
-    modal.innerHTML='<div class="original-photo-gallery-card"><div class="original-photo-gallery-head"><b>Оригинальные фотографии</b><button type="button" aria-label="Закрыть">×</button></div><div class="original-photo-gallery-hint"><button type="button" class="original-photo-gallery-save" disabled>Подготавливаем оригиналы…</button><span>Нажмите «Сохранить все в Файлы», затем выберите или создайте папку. На iOS 14 файлы сохраняются по одному долгим нажатием.</span></div><div class="original-photo-gallery-grid"></div></div>';
+    modal.innerHTML='<div class="original-photo-gallery-card"><div class="original-photo-gallery-head"><b>Оригинальные фотографии</b><button type="button" aria-label="Закрыть">×</button></div><div class="original-photo-gallery-hint"><button type="button" class="original-photo-gallery-save" disabled>Подготавливаем оригиналы…</button><span>iOS 14: нажмите фотографию, затем удерживайте открытый оригинал и выберите «Сохранить в Фото».</span></div><div class="original-photo-gallery-grid"></div></div>';
     // Вставляем после модального отчёта, чтобы старый Safari не помещал галерею
     // внутрь его stacking context.
     document.body.appendChild(modal);
@@ -8138,7 +8200,7 @@ function ensureOriginalPhotoGallery(photos) {
     modal.addEventListener('click',e=>{if(e.target===modal)closeOriginalPhotoGallery()});
   }
   const grid=modal.querySelector('.original-photo-gallery-grid');
-  grid.innerHTML=photos.map((url,i)=>`<a href="${esc(url)}" target="_blank" rel="noopener"><img src="${esc(url)}" alt="Фото ${i+1}"><span>${i+1}</span></a>`).join('');
+  grid.innerHTML=photos.map((url,i)=>`<a href="${esc(url)}" target="_blank" rel="noopener" download="${String(i+1).padStart(2,'0')}.jpg"><img src="${esc(url)}" alt="Фото ${i+1}"><span>${i+1}</span><em>Открыть оригинал</em></a>`).join('');
   const report=document.getElementById('reportModal');
   if(report&&report.classList.contains('open')){
     report.dataset.hiddenByGallery='1';
@@ -8193,6 +8255,8 @@ async function downloadOriginalPhotosToDesktop() {
 }
 function handlePhotoExport() {
   if(!isMobilePhotoTarget())return downloadOriginalPhotosToDesktop();
+  const ios=detectedIOSMajorVersion();
+  if(ios&&ios<15)return downloadLegacyIOSPhotosZip();
   // Если оригиналы уже подготовлены, системное меню вызывается синхронно из
   // текущего касания — это единственный надёжный путь для iOS сохранить все файлы.
   if(canNativeSharePhotoFiles(mobileOriginalPhotoCache.files))return shareCachedOriginalPhotos();
@@ -11286,42 +11350,71 @@ function finalExpenseRowsHTML(showCommissionNote = false) {
   };
   return Object.entries(state.expenses || {}).map(([key, value]) => {
     const note = showCommissionNote && key === 'commission' ? '<small>Свыше 150 000 ₽ автоматически переводится в валюту страны</small>' : '';
-    return `<tr class="editable-expense-row"><td>${labels[key] || key}${note}</td><td><label class="result-expense-control"><input type="text" inputmode="numeric" data-final-exp-key="${key}" value="${fmtN(value || 0)}" onfocus="selectFinalExpenseInput(this)" onclick="selectFinalExpenseInput(this)" oninput="handleFinalExpenseInput(this)"><span>₽</span></label></td></tr>`;
+    return `<tr class="editable-expense-row"><td>${labels[key] || key}${note}</td><td><label class="result-expense-control"><input type="text" inputmode="numeric" data-final-exp-key="${key}" value="${fmtN(value || 0)}" onfocus="prepareFinalExpenseInput(this)" onbeforeinput="replaceFinalExpenseOnFirstInput(event,this)" oninput="handleFinalExpenseInput(this)" onblur="commitFinalExpenseInput(this)"><span>₽</span></label></td></tr>`;
   }).join('');
 }
-let finalExpenseRecalcTimer=null;
-function selectFinalExpenseInput(input) {
+let finalExpenseCommitTimer=null,finalExpenseDirty=false;
+function prepareFinalExpenseInput(input) {
   if(!input)return;
   if(input.dataset.skipSelectOnce==='1'){delete input.dataset.skipSelectOnce;return;}
-  // На iOS выделение в самом focus часто сбрасывается завершающим touch/click.
-  // Небольшая задержка выделяет всю сумму уже после обработки касания.
-  setTimeout(()=>{
-    if(document.activeElement!==input)return;
-    try{input.setSelectionRange(0,input.value.length)}catch(e){try{input.select()}catch(_) {}}
-  },35);
+  input.dataset.replaceOnNextInput='1';
+  // Без отложенного таймера: старый iOS мог выполнить его уже после первой
+  // введённой цифры и выделить эту цифру повторно.
+  try{input.setSelectionRange(0,input.value.length)}catch(e){try{input.select()}catch(_) {}}
+  requestAnimationFrame(()=>{
+    if(document.activeElement===input&&input.dataset.replaceOnNextInput==='1'){
+      try{input.setSelectionRange(0,input.value.length)}catch(e){}
+    }
+  });
+}
+function replaceFinalExpenseOnFirstInput(event,input) {
+  if(!input||input.dataset.replaceOnNextInput!=='1')return;
+  delete input.dataset.replaceOnNextInput;
+  const type=String(event&&event.inputType||'');
+  const data=event&&event.data;
+  if(/^insert/.test(type)&&data!=null&&data!==''){
+    event.preventDefault();
+    input.value=String(data).replace(/\D/g,'');
+    try{input.setSelectionRange(input.value.length,input.value.length)}catch(e){}
+    handleFinalExpenseInput(input);
+  }
+}
+function updateFinalHeadlineWhileTyping() {
+  if(state.calcMode==='reverse'){
+    const reverse=calculateReverseBudget();
+    if(!reverse||reverse.impossible)return;
+    const total=document.getElementById('resultTotal');if(total)total.textContent=fmtSearchPrice(reverse.maxPrice);
+    const sub=main.querySelector('.result-subcaption');
+    if(sub)sub.innerHTML=`К цене объявления прибавить комиссию: <b>+ ${fmtSearchPrice(reverse.commissionAddCurrency)}</b>`;
+    return;
+  }
+  const result=computeResult();if(!result)return;
+  const total=document.getElementById('resultTotal');if(total)total.textContent=fmtRub(result.grandTotal);
+  const alt=main.querySelector('.belarus-total-value');if(alt&&result.belarusAlt&&!result.belarusAlt.unavailable)alt.textContent=fmtRub(result.belarusAlt.grandTotal);
 }
 function handleFinalExpenseInput(input) {
-  const key = input && input.dataset.finalExpKey;
-  if (!key) return;
-  state.expenses[key] = Math.max(0, parseNum(input.value) || 0);
-  saveAppState();
-  clearTimeout(finalExpenseRecalcTimer);
-  // Не перестраиваем таблицу на каждый введённый символ: это было причиной,
-  // по которой Safari терял выделение и заставлял удалять сумму по одной цифре.
-  finalExpenseRecalcTimer=setTimeout(()=>{
-    const shouldRestore=document.activeElement===input;
-    if (state.calcMode === 'reverse') {
-      const reverse = calculateReverseBudget();
-      if (reverse) renderReverseResult(reverse,shouldRestore?key:null,null);
-    } else {
-      const result = computeResult();
-      const card = main.querySelector('.result-card');
-      if (result && card) {
-        card.innerHTML = renderResultCardOnly(result);
-        if(shouldRestore)restoreFinalExpenseFocus(key,null);
-      }
+  const key=input&&input.dataset.finalExpKey;if(!key)return;
+  state.expenses[key]=Math.max(0,parseNum(input.value)||0);
+  finalExpenseDirty=true;
+  // Не сериализуем большой parsedData в localStorage на каждой цифре — на
+  // iPhone SE это блокировало основной поток и создавало ощущение остановки ввода.
+  // Во время фокуса таблицу вообще не перестраиваем. Даже пауза между цифрами
+  // больше не может оборвать ввод на старом Mobile Safari.
+  updateFinalHeadlineWhileTyping();
+}
+function commitFinalExpenseInput() {
+  clearTimeout(finalExpenseCommitTimer);
+  finalExpenseCommitTimer=setTimeout(()=>{
+    const active=document.activeElement;
+    if(active&&active.matches&&active.matches('[data-final-exp-key]'))return;
+    if(!finalExpenseDirty)return;finalExpenseDirty=false;saveAppState();
+    if(state.calcMode==='reverse'){
+      const reverse=calculateReverseBudget();if(reverse)renderReverseResult(reverse);
+    }else{
+      const result=computeResult(),card=main.querySelector('.result-card');
+      if(result&&card)card.innerHTML=renderResultCardOnly(result);
     }
-  },220);
+  },120);
 }
 function restoreFinalExpenseFocus(key, cursor) {
   requestAnimationFrame(() => {
@@ -11425,6 +11518,13 @@ function renderResult(result) {
 
 function liveRecalc() {
   if (!state.isCalculated) return;
+  const activeExpense=document.activeElement;
+  if(activeExpense&&activeExpense.matches&&activeExpense.matches('[data-final-exp-key]')){
+    // Обновление курса не имеет права перестраивать итог, пока пользователь
+    // набирает расход на iPhone — иначе после первой цифры теряется клавиатура.
+    updateFinalHeadlineWhileTyping();
+    return;
+  }
   if (state.calcMode === 'reverse') {
     const reverse = calculateReverseBudget();
     if (reverse) renderReverseResult(reverse);
@@ -12688,5 +12788,5 @@ setInterval(saveAppState, 2000);
 })();
 </script>
 
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1d2e2caf96f0cb1',t:'MTc4NDM5MjM4Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>
