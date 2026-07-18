@@ -11672,6 +11672,7 @@ function renderBelarusAlt(result) {
   rows += `<tr class="header"><td colspan="2">Пошлина и утильсбор</td></tr>`;
   rows += `<tr><td>Пошлина физлицо (льгота 50%)<small>${alt.dutyInfo.detail}</small></td><td>${fmtRub(alt.dutyRub)}</td></tr>`;
   rows += `<tr><td>Утильсбор РФ<small>${alt.utilInfo.detail}</small></td><td>${fmtRub(alt.util)}</td></tr>`;
+  rows += `<tr class="spacer-row" style="visibility:hidden;height:42px;"><td colspan="2">&nbsp;</td></tr>`;
   rows += `<tr class="header"><td colspan="2">Логистика и услуги</td></tr>`;
   rows += `<tr><td>Транзит через Беларусь</td><td>${fmtRub(alt.transitBY)}</td></tr>`;
   rows += `<tr><td>Владивосток → Москва</td><td>${fmtRub(alt.deliveryVlaMsk)}</td></tr>`;
@@ -12119,8 +12120,8 @@ function fmtWon(n) {
 
 // Разделитель раздела
 // Короткие разделители не ломаются и не переносятся в Telegram/WhatsApp.
-const TXT_LINE = '━━━━━━━━━━━━━━━━━━━━';
-const TXT_LINE_2 = '━━━━━━━━━━━━━━━━━━━━';
+const TXT_LINE = '';
+const TXT_LINE_2 = '';
 
 // Собирает диагностику Encar (10 узлов кузова) в компактный вид
 function buildDiagBlock(pd) {
@@ -12991,5 +12992,5 @@ window.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1d412a6bd5b8dcb',t:'MTc4NDQwNDgyOQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1d421c4ea718dcb',t:'MTc4NDQwNTQ0OA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
