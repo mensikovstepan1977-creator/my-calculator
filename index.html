@@ -4386,6 +4386,9 @@ html{background:#eef3f7!important}
 .original-photo-gallery-grid span{position:absolute;right:5px;bottom:5px;padding:2px 5px;border-radius:5px;background:rgba(255,255,255,.88);color:#294a63;font-size:10px;font-weight:800}
 
 /* iPhone SE: use the full visual viewport with readable, not microscopic rows. */
+@media(max-width:900px){.desktop-photo-export{display:none!important}}
+@media(min-width:901px){.desktop-photo-export{display:block!important}}
+
 @media(max-width:380px){
   body.mobile-final-result .result-total-caption{font-size:8px!important}
   body.mobile-final-result .country-flag{font-size:8px!important}
@@ -4585,7 +4588,7 @@ html{background:#eef3f7!important}
     </div>
     <div class="report-modal-footer">
       <button class="action-btn" onclick="closeReportPreview()">Закрыть</button>
-      <button class="action-btn" id="downloadPhotosBtn" onclick="handlePhotoExport()" style="flex:1">Скачать оригинальные фото</button>
+      <button class="action-btn" type="button" id="downloadPhotosBtn" ontouchend="event.preventDefault();event.stopPropagation();handlePhotoExport();return false" onclick="handlePhotoExport();return false" style="flex:1">Скачать папку с фото</button>
       <button class="action-btn primary" id="copyReportBtn" onclick="copyReportToClipboard()" style="flex:1">Копировать отчёт</button>
     </div>
   </div>
@@ -5608,7 +5611,7 @@ async function autoLoadAllRates() {
 }
 
 // ═════════════════ СТЕЙТ ═════════════════
-const APP_BUILD = '2026.07.18-ENCAR-JSON-55';
+const APP_BUILD = '2026.07.18-LOCAL-PHOTO-DOWNLOAD-60';
 const state = {
   country: null, year: null, month: null,
   engineType: null, cc: null, hp: null, kw: null, powerSource: null,
@@ -7876,6 +7879,9 @@ async function processUrl(url) {
 
   // Заполняем стейт калькулятора извлечёнными данными
   state.parsedData = parsed;
+  // Начинаем загрузку оригиналов заранее. К моменту открытия отчёта кнопка
+  // «Сохранить все в Фото» уже готова и одно касание не теряет user activation.
+  if(isMobilePhotoTarget()&&parsed&&Array.isArray(parsed.photos)&&parsed.photos.length)preloadOriginalPhotosForMobile(parsed);
   state.hp = null; state.kw = null; state.powerSource = null;
   state.country = site === 'encar' ? 'korea' : 'china';
   if (parsed.year)  state.year  = parsed.year;
@@ -8029,14 +8035,42 @@ async function loadOriginalPhotoFiles(photos, onProgress) {
 }
 let mobileOriginalPhotoCache={signature:'',files:[],loading:null,title:''};
 function photoListSignature(photos){return photos.join('|')}
+function originalPhotoFolderName(pd) {
+  const base=String(pd&&pd.title||'Фото автомобиля')
+    .replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim().slice(0,70)||'Фото автомобиля';
+  return base+' · '+new Date().toISOString().slice(0,10);
+}
+function canUseDirectoryPhotoExport() {
+  // Chromium запрещает выбирать корень «Загрузки» из локальной file:// страницы
+  // как чувствительную системную папку. В этом режиме используем обычные загрузки.
+  return location.protocol==='https:'&&typeof window.showDirectoryPicker==='function';
+}
+function desktopPhotoExportLabel() {
+  return canUseDirectoryPhotoExport()?'Скачать папку с фото':'Скачать все фото в Загрузки';
+}
+function canNativeSharePhotoFiles(files) {
+  try{return !!(files&&files.length&&navigator.share&&(!navigator.canShare||navigator.canShare({files})))}catch(e){return false}
+}
+function updateReportPhotoButton() {
+  const btn=document.getElementById('downloadPhotosBtn');if(!btn||!isMobilePhotoTarget())return;
+  const files=mobileOriginalPhotoCache.files||[],loading=mobileOriginalPhotoCache.loading;
+  if(canNativeSharePhotoFiles(files)){
+    btn.disabled=false;btn.style.opacity='';btn.textContent=`Сохранить фото в Файлы (${files.length})`;
+  }else if(loading){
+    btn.disabled=true;btn.style.opacity='.72';btn.textContent='Подготавливаем оригиналы…';
+  }else{
+    const n=state.parsedData&&state.parsedData.photos?state.parsedData.photos.length:0;
+    btn.disabled=false;btn.style.opacity='';btn.textContent=`Открыть оригиналы (${n})`;
+  }
+}
 function updateOriginalGallerySaveButton() {
   const modal=document.getElementById('originalPhotoGallery'),save=modal&&modal.querySelector('.original-photo-gallery-save');
   if(!save)return;
   const files=mobileOriginalPhotoCache.files||[];
-  const supported=!!(files.length&&navigator.share&&(!navigator.canShare||navigator.canShare({files})));
+  const supported=canNativeSharePhotoFiles(files);
   save.style.display=supported?'block':'none';
   save.disabled=!supported;
-  save.textContent=supported?`Сохранить все в Фото (${files.length})`:'Подготавливаем оригиналы…';
+  save.textContent=supported?`Сохранить все в Файлы (${files.length})`:'Подготавливаем оригиналы…';
 }
 function preloadOriginalPhotosForMobile(pd) {
   const photos=pd&&Array.isArray(pd.photos)?pd.photos.filter(Boolean):[],signature=photoListSignature(photos);
@@ -8048,35 +8082,73 @@ function preloadOriginalPhotosForMobile(pd) {
   mobileOriginalPhotoCache={signature,files:[],loading:null,title:pd.title||'Фотографии автомобиля'};
   mobileOriginalPhotoCache.loading=loadOriginalPhotoFiles(photos,(n,total)=>{
     const save=document.querySelector('.original-photo-gallery-save');
+    const reportBtn=document.getElementById('downloadPhotosBtn');
     if(save&&!mobileOriginalPhotoCache.files.length){save.style.display='block';save.disabled=true;save.textContent=`Подготавливаем ${n}/${total}`}
+    if(reportBtn&&isMobilePhotoTarget()){reportBtn.disabled=true;reportBtn.textContent=`Подготавливаем ${n}/${total}`}
   }).then(files=>{
-    mobileOriginalPhotoCache.files=files;mobileOriginalPhotoCache.loading=null;updateOriginalGallerySaveButton();return files;
-  }).catch(e=>{mobileOriginalPhotoCache.loading=null;console.warn('[photo preload]',e);updateOriginalGallerySaveButton();return[]});
+    mobileOriginalPhotoCache.files=files;mobileOriginalPhotoCache.loading=null;updateOriginalGallerySaveButton();updateReportPhotoButton();return files;
+  }).catch(e=>{mobileOriginalPhotoCache.loading=null;console.warn('[photo preload]',e);updateOriginalGallerySaveButton();updateReportPhotoButton();return[]});
   return mobileOriginalPhotoCache.loading;
 }
 async function shareCachedOriginalPhotos() {
   const files=mobileOriginalPhotoCache.files||[];
-  if(!files.length||!navigator.share||navigator.canShare&&!navigator.canShare({files}))return;
+  if(!canNativeSharePhotoFiles(files))return;
   const btn=document.querySelector('.original-photo-gallery-save');
   try{
     if(btn){btn.disabled=true;btn.textContent='Открываем Фото…'}
     // Вызов происходит непосредственно из отдельного касания — iOS не теряет user activation.
-    await navigator.share({files,title:mobileOriginalPhotoCache.title||'Фотографии автомобиля'});
+    await navigator.share({files,title:originalPhotoFolderName({title:mobileOriginalPhotoCache.title})});
   }catch(e){if(!(e&&e.name==='AbortError'))console.warn('[share photos]',e)}
   finally{updateOriginalGallerySaveButton()}
+}
+function closeOriginalPhotoGallery() {
+  const modal=document.getElementById('originalPhotoGallery');
+  if(modal){modal.classList.remove('open');modal.style.setProperty('display','none','important')}
+  const report=document.getElementById('reportModal');
+  if(report&&report.dataset.hiddenByGallery==='1'){
+    delete report.dataset.hiddenByGallery;
+    report.style.removeProperty('visibility');
+    report.style.removeProperty('pointer-events');
+  }
 }
 function ensureOriginalPhotoGallery(photos) {
   let modal=document.getElementById('originalPhotoGallery');
   if(!modal){
     modal=document.createElement('div');modal.id='originalPhotoGallery';
-    modal.innerHTML='<div class="original-photo-gallery-card"><div class="original-photo-gallery-head"><b>Оригинальные фотографии</b><button type="button" aria-label="Закрыть">×</button></div><div class="original-photo-gallery-hint"><button type="button" class="original-photo-gallery-save" disabled>Подготавливаем оригиналы…</button><span>На iOS 14: нажмите и удерживайте фотографию, затем выберите «Сохранить в Фото».</span></div><div class="original-photo-gallery-grid"></div></div>';
+    modal.innerHTML='<div class="original-photo-gallery-card"><div class="original-photo-gallery-head"><b>Оригинальные фотографии</b><button type="button" aria-label="Закрыть">×</button></div><div class="original-photo-gallery-hint"><button type="button" class="original-photo-gallery-save" disabled>Подготавливаем оригиналы…</button><span>Нажмите «Сохранить все в Файлы», затем выберите или создайте папку. На iOS 14 файлы сохраняются по одному долгим нажатием.</span></div><div class="original-photo-gallery-grid"></div></div>';
+    // Вставляем после модального отчёта, чтобы старый Safari не помещал галерею
+    // внутрь его stacking context.
     document.body.appendChild(modal);
-    modal.querySelector('.original-photo-gallery-head button').onclick=()=>modal.classList.remove('open');
-    modal.querySelector('.original-photo-gallery-save').onclick=shareCachedOriginalPhotos;
-    modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('open')});
+    const closeBtn=modal.querySelector('.original-photo-gallery-head button');
+    const saveBtn=modal.querySelector('.original-photo-gallery-save');
+    closeBtn.onclick=closeOriginalPhotoGallery;
+    closeBtn.ontouchend=e=>{e.preventDefault();e.stopPropagation();closeOriginalPhotoGallery()};
+    saveBtn.onclick=shareCachedOriginalPhotos;
+    saveBtn.ontouchend=e=>{e.preventDefault();e.stopPropagation();shareCachedOriginalPhotos()};
+    modal.addEventListener('click',e=>{if(e.target===modal)closeOriginalPhotoGallery()});
   }
   const grid=modal.querySelector('.original-photo-gallery-grid');
-  grid.innerHTML=photos.map((url,i)=>`<a href="${esc(url)}" target="_blank" rel="noopener"><img src="${esc(url)}" alt="Фото ${i+1}" loading="lazy"><span>${i+1}</span></a>`).join('');
+  grid.innerHTML=photos.map((url,i)=>`<a href="${esc(url)}" target="_blank" rel="noopener"><img src="${esc(url)}" alt="Фото ${i+1}"><span>${i+1}</span></a>`).join('');
+  const report=document.getElementById('reportModal');
+  if(report&&report.classList.contains('open')){
+    report.dataset.hiddenByGallery='1';
+    report.style.setProperty('visibility','hidden','important');
+    report.style.setProperty('pointer-events','none','important');
+  }
+  // Критическая геометрия дублируется inline для iOS 14.2.
+  const viewport=window.visualViewport;
+  const h=Math.max(180,Math.round(viewport&&viewport.height||window.innerHeight||568));
+  modal.style.setProperty('display','block','important');
+  modal.style.setProperty('position','fixed','important');
+  modal.style.setProperty('top','0','important');
+  modal.style.setProperty('right','0','important');
+  modal.style.setProperty('bottom','auto','important');
+  modal.style.setProperty('left','0','important');
+  modal.style.setProperty('width','100vw','important');
+  modal.style.setProperty('height',h+'px','important');
+  modal.style.setProperty('z-index','2147483647','important');
+  modal.style.setProperty('visibility','visible','important');
+  modal.style.setProperty('pointer-events','auto','important');
   modal.classList.add('open');updateOriginalGallerySaveButton();return modal;
 }
 function saveOriginalPhotosToGallery() {
@@ -8089,26 +8161,56 @@ function saveOriginalPhotosToGallery() {
 async function downloadOriginalPhotosToDesktop() {
   const pd=state.parsedData,photos=pd&&Array.isArray(pd.photos)?pd.photos.filter(Boolean):[];
   if(!photos.length){alert('Нет фото для скачивания');return;}
-  const btn=document.getElementById('downloadPhotosBtn'),orig=btn?btn.innerHTML:'';
-  if(btn){btn.disabled=true;btn.style.opacity='.7'}
-  const status=t=>{if(btn)btn.innerHTML=t};
+  const buttons=Array.from(document.querySelectorAll('#downloadPhotosBtn,.desktop-photo-export'));
+  const originals=buttons.map(btn=>btn.innerHTML);
+  const setStatus=t=>buttons.forEach(btn=>{btn.innerHTML=t});
+  buttons.forEach(btn=>{btn.disabled=true;btn.style.opacity='.7'});
+  let directory=null;
   try{
-    const files=await loadOriginalPhotoFiles(photos,(n,total)=>status(`Скачиваем оригиналы ${n}/${total}`));
-    if(!files.length)throw new Error('не удалось получить фотографии');
-    // Каждый файл отправляется в стандартные «Загрузки» браузера отдельно.
-    // Blob содержит исходные байты — архивирования и перекодирования нет.
-    for(let i=0;i<files.length;i++){
-      const file=files[i],url=URL.createObjectURL(file),a=document.createElement('a');
-      a.href=url;a.download=file.name||String(i+1).padStart(2,'0')+'.jpg';a.style.display='none';
-      document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),15000);
-      if(i<files.length-1)await new Promise(resolve=>setTimeout(resolve,140));
+    // Chrome/Edge: один выбор папки, затем все оригиналы сохраняются туда разом.
+    // Диалог вызывается до сетевых await, пока действует user activation.
+    if(canUseDirectoryPhotoExport()){
+      try{
+        const parent=await window.showDirectoryPicker({mode:'readwrite',id:'car-original-photos',startIn:'documents'});
+        const folderName=originalPhotoFolderName(pd);
+        directory=parent&&typeof parent.getDirectoryHandle==='function'
+          ? await parent.getDirectoryHandle(folderName,{create:true})
+          : parent;
+      }catch(e){
+        if(e&&e.name==='AbortError')return;
+        // Если Chromium запретил системную папку, продолжаем обычными загрузками.
+        console.warn('[folder picker fallback]',e&&e.message||e);directory=null;
+      }
     }
-    status(`Скачано без архива: ${files.length}`);
+    const files=await loadOriginalPhotoFiles(photos,(n,total)=>setStatus(`Оригиналы ${n}/${total}`));
+    if(!files.length)throw new Error('не удалось получить фотографии');
+    if(directory){
+      for(const file of files){
+        const handle=await directory.getFileHandle(file.name,{create:true});
+        const writable=await handle.createWritable();
+        await writable.write(file);await writable.close();
+      }
+    }else{
+      // Safari/Firefox: отдельные оригинальные файлы в стандартные «Загрузки».
+      // Браузер может один раз запросить разрешение на несколько скачиваний.
+      for(let i=0;i<files.length;i++){
+        const file=files[i],url=URL.createObjectURL(file),a=document.createElement('a');
+        a.href=url;a.download=file.name||String(i+1).padStart(2,'0')+'.jpg';a.style.display='none';
+        document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),15000);
+        if(i<files.length-1)await new Promise(resolve=>setTimeout(resolve,140));
+      }
+    }
+    setStatus(`Скачано фото: ${files.length}`);
   }catch(e){console.warn('[desktop photo export]',e);alert('Не удалось скачать оригиналы: '+e.message);}
-  finally{setTimeout(()=>{if(btn){btn.innerHTML=orig;btn.disabled=false;btn.style.opacity=''}},2200)}
+  finally{setTimeout(()=>buttons.forEach((btn,i)=>{btn.innerHTML=originals[i];btn.disabled=false;btn.style.opacity=''}),2200)}
 }
 function handlePhotoExport() {
-  return isMobilePhotoTarget()?saveOriginalPhotosToGallery():downloadOriginalPhotosToDesktop();
+  if(!isMobilePhotoTarget())return downloadOriginalPhotosToDesktop();
+  // Если оригиналы уже подготовлены, системное меню вызывается синхронно из
+  // текущего касания — это единственный надёжный путь для iOS сохранить все файлы.
+  if(canNativeSharePhotoFiles(mobileOriginalPhotoCache.files))return shareCachedOriginalPhotos();
+  // Старые iOS без Web Share Files: сразу показываем оригиналы для сохранения.
+  return saveOriginalPhotosToGallery();
 }
 // Совместимость со старой кнопкой/сохранённой вкладкой: ZIP больше не создаётся.
 function downloadAllPhotosZip(){return handlePhotoExport()}
@@ -11410,6 +11512,7 @@ function renderResultCardOnly(result) {
     <div class="action-row">
       <button class="action-btn" onclick="copyResultToClipboard(this)">${hasSplit ? 'Копировать всё' : 'Копировать'}</button>
       <button class="action-btn" type="button" id="openReportBtn" onclick="openReportPreview(event);return false">Отчёт</button>
+      ${state.parsedData && Array.isArray(state.parsedData.photos) && state.parsedData.photos.length ? `<button class="action-btn desktop-photo-export" type="button" onclick="downloadOriginalPhotosToDesktop();return false">${desktopPhotoExportLabel()}</button>` : ''}
       <button class="action-btn primary" onclick="resetChat()">Новый</button>
     </div>
   `;
@@ -12453,12 +12556,14 @@ function openReportPreview(event) {
     const nPhotos = (state.parsedData.photos || []).length;
     if (nPhotos > 0) {
       zipBtn.style.display = '';
-      if(isMobilePhotoTarget())preloadOriginalPhotosForMobile(state.parsedData);
-      zipBtn.innerHTML = isMobilePhotoTarget()
-        ? `Открыть галерею (${nPhotos})`
-        : `Скачать оригиналы (${nPhotos})`;
-      zipBtn.disabled = false;
-      zipBtn.style.opacity = '';
+      if(isMobilePhotoTarget()){
+        zipBtn.disabled=true;zipBtn.style.opacity='.72';zipBtn.textContent='Подготавливаем оригиналы…';
+        preloadOriginalPhotosForMobile(state.parsedData).then(updateReportPhotoButton);
+        updateReportPhotoButton();
+      }else{
+        zipBtn.textContent=`${desktopPhotoExportLabel()} (${nPhotos})`;
+        zipBtn.disabled=false;zipBtn.style.opacity='';
+      }
     } else {
       zipBtn.style.display = 'none';
     }
@@ -12579,5 +12684,5 @@ setInterval(saveAppState, 2000);
 })();
 </script>
 
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1d2a67ebe7a0cb1',t:'MTc4NDM4OTkxMw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1d2cec7de7e0cb1',t:'MTc4NDM5MTU2Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
