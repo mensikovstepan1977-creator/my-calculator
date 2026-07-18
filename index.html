@@ -4407,6 +4407,23 @@ html{background:#eef3f7!important}
   body.mobile-final-result .action-row .action-btn{font-size:11px!important}
 }
 
+
+@media (max-width: 900px) {
+  .result-card-header {
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+  }
+  .result-body {
+    padding-left: 18px !important;
+    padding-right: 18px !important;
+  }
+  .result-card {
+    margin-left: 6px !important;
+    margin-right: 6px !important;
+    width: calc(100% - 12px) !important;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -10935,7 +10952,24 @@ function askMissingRates(missing) {
       .miss-unit { position:absolute; right:12px; color:#8a97ad; font-weight:600; pointer-events:none; }
       .miss-actions { display:flex; gap:8px; margin-top:14px; flex-wrap:nowrap; }
       .miss-actions .opt-btn { flex:1 1 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    </style>
+    
+@media (max-width: 900px) {
+  .result-card-header {
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+  }
+  .result-body {
+    padding-left: 18px !important;
+    padding-right: 18px !important;
+  }
+  .result-card {
+    margin-left: 6px !important;
+    margin-right: 6px !important;
+    width: calc(100% - 12px) !important;
+  }
+}
+
+</style>
     <div class="miss-list">${inputs}</div>
   `;
   showOptions(`Нужны курсы: ${list}`, 'Введите их прямо здесь и нажмите «Продолжить».', [
@@ -12800,8 +12834,7 @@ setInterval(saveAppState, 2000);
 
 <!-- ═══ MOBILE FULL LOGGING OVERLAYS (GLOW INDICATOR) ═══ -->
 <button id="mobileFloatLogBtn" onclick="openDiagnosticLogs()" aria-label="Логи и диагностика" title="Логи и диагностика">
-  <span style="font-size:16px;">🐛</span>
-  <span>Логи</span>
+  <span>📋 Логи</span>
   <span class="mfl-badge" id="mobileLogErrBadge">0</span>
 </button>
 
@@ -12824,6 +12857,8 @@ setInterval(saveAppState, 2000);
 }
 
 #mobileFloatLogBtn {
+  z-index: 999999 !important;
+  pointer-events: auto !important;
   position: fixed;
   bottom: 16px;
   right: 16px;
@@ -12854,8 +12889,27 @@ setInterval(saveAppState, 2000);
 }
 .mfl-badge.has-errors { display: inline-block; }
 @media (max-width: 900px) {
-  #mobileFloatLogBtn { display: flex !important; }
+  #mobileFloatLogBtn {
+  z-index: 999999 !important;
+  pointer-events: auto !important; display: flex !important; }
 }
+
+@media (max-width: 900px) {
+  .result-card-header {
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+  }
+  .result-body {
+    padding-left: 18px !important;
+    padding-right: 18px !important;
+  }
+  .result-card {
+    margin-left: 6px !important;
+    margin-right: 6px !important;
+    width: calc(100% - 12px) !important;
+  }
+}
+
 </style>
 <script>
 // Mobile Logging Enhancements & Glowing Indicator
@@ -12937,5 +12991,5 @@ window.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1d3f4e319ba2e09',t:'MTc4NDQwMzYxMA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1d412a6bd5b8dcb',t:'MTc4NDQwNDgyOQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
