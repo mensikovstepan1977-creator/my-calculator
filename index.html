@@ -4361,6 +4361,28 @@ html{background:#eef3f7!important}
   #reportModal.open .report-modal-header,#reportModal.open .report-modal-footer{flex:0 0 auto!important}
 }
 
+/* Mobile fallback when Web Share cannot pass files to the Photos app. */
+#originalPhotoGallery{
+  display:none;position:fixed;inset:0;z-index:2147483647;padding:0;
+  background:#f3f6f8;overflow:hidden
+}
+#originalPhotoGallery.open{display:block}
+.original-photo-gallery-card{height:100%;display:flex;flex-direction:column;background:#f3f6f8}
+.original-photo-gallery-head{
+  flex:0 0 54px;display:flex;align-items:center;justify-content:space-between;
+  padding:8px 12px;background:linear-gradient(180deg,#dcecf9,#afd1e8);border-bottom:1px solid #9abbd2
+}
+.original-photo-gallery-head b{font-size:17px;color:#294a63}
+.original-photo-gallery-head button{width:40px;height:40px;border:1px solid #9db9cc;border-radius:10px;background:#fff;font-size:24px}
+.original-photo-gallery-hint{flex:0 0 auto;padding:9px 12px;color:#526673;font-size:12px;line-height:1.3;background:#fff}
+.original-photo-gallery-grid{
+  flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;padding:5px
+}
+.original-photo-gallery-grid a{position:relative;display:block;min-width:0;height:clamp(105px,33vw,180px);background:#e2e8ec;overflow:hidden;border-radius:7px}
+.original-photo-gallery-grid img{display:block;width:100%;height:100%;object-fit:cover}
+.original-photo-gallery-grid span{position:absolute;right:5px;bottom:5px;padding:2px 5px;border-radius:5px;background:rgba(255,255,255,.88);color:#294a63;font-size:10px;font-weight:800}
+
 </style>
 </head>
 <body>
@@ -4404,7 +4426,7 @@ html{background:#eef3f7!important}
         </div>
         <div class="rate-body">
           <label>1000 ₩ · вон</label>
-          <input type="text" inputmode="decimal" id="rateKRW" placeholder="0.00" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" name="rate_krw_manual">
+          <input type="text" inputmode="decimal" id="rateKRW" placeholder="" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" name="rate_krw_manual">
         </div>
       </div>
       <div class="rate-cell" id="rateCNYcell">
@@ -4423,7 +4445,7 @@ html{background:#eef3f7!important}
         </div>
         <div class="rate-body">
           <label>1 ¥ · юань</label>
-          <input type="text" inputmode="decimal" id="rateCNY" placeholder="0.00" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" name="rate_cny_manual">
+          <input type="text" inputmode="decimal" id="rateCNY" placeholder="" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" name="rate_cny_manual">
         </div>
       </div>
       <div class="rate-cell" id="rateUSDcell">
@@ -4442,7 +4464,7 @@ html{background:#eef3f7!important}
         </div>
         <div class="rate-body">
           <label>1 $ · USDT</label>
-          <input type="text" inputmode="decimal" id="rateUSD" placeholder="0.00" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" name="rate_usd_manual">
+          <input type="text" inputmode="decimal" id="rateUSD" placeholder="" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" name="rate_usd_manual">
         </div>
       </div>
       <div class="rate-cell" id="rateEURcell">
@@ -4469,7 +4491,7 @@ html{background:#eef3f7!important}
         </div>
         <div class="rate-body">
           <label>1 € · евро</label>
-          <input type="text" inputmode="decimal" id="rateEUR" placeholder="0.00" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" name="rate_eur_manual">
+          <input type="text" inputmode="decimal" id="rateEUR" placeholder="" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" name="rate_eur_manual">
         </div>
       </div>
     </div>
@@ -4521,7 +4543,7 @@ html{background:#eef3f7!important}
     <div class="diagnostic-head"><div><b>🧾 Диагностика</b><small id="diagnosticSummary">Журнал работы калькулятора</small></div><button onclick="closeDiagnosticLogs()" aria-label="Закрыть">×</button></div>
     <div class="diagnostic-toolbar">
       <select id="diagnosticLevel" onchange="renderDiagnosticLogs()"><option value="">Все уровни</option><option value="error">Ошибки</option><option value="warn">Предупреждения</option><option value="info">Информация</option><option value="debug">Подробно</option></select>
-      <input id="diagnosticSearch" placeholder="Поиск: power, Drom, VIN…" oninput="renderDiagnosticLogs()">
+      <input id="diagnosticSearch" placeholder="" oninput="renderDiagnosticLogs()">
     </div>
     <pre class="diagnostic-output" id="diagnosticOutput"></pre>
     <div class="diagnostic-actions"><button onclick="copyDiagnosticLogs(this)">Копировать</button><button onclick="downloadDiagnosticLogs()">⬇ Скачать JSON</button><button class="danger" onclick="clearDiagnosticLogs()">Очистить</button></div>
@@ -4543,7 +4565,7 @@ html{background:#eef3f7!important}
     </div>
     <div class="report-modal-footer">
       <button class="action-btn" onclick="closeReportPreview()">Закрыть</button>
-      <button class="action-btn" id="downloadPhotosBtn" onclick="downloadAllPhotosZip()" style="flex:1">Скачать фото (ZIP)</button>
+      <button class="action-btn" id="downloadPhotosBtn" onclick="handlePhotoExport()" style="flex:1">Скачать оригинальные фото</button>
       <button class="action-btn primary" id="copyReportBtn" onclick="copyReportToClipboard()" style="flex:1">Копировать отчёт</button>
     </div>
   </div>
@@ -5566,7 +5588,7 @@ async function autoLoadAllRates() {
 }
 
 // ═════════════════ СТЕЙТ ═════════════════
-const APP_BUILD = '2026.07.18-NEOCITIES-RATES-49';
+const APP_BUILD = '2026.07.18-EMPTY-FIELDS-SE-53';
 const state = {
   country: null, year: null, month: null,
   engineType: null, cc: null, hp: null, kw: null, powerSource: null,
@@ -5866,15 +5888,35 @@ function syncMobileFinalViewport() {
   // старый WebKit иногда обновляет innerHeight раньше visualViewport.height.
   const heightCandidates=[viewport&&viewport.height,window.innerHeight,document.documentElement.clientHeight]
     .map(Number).filter(v=>isFinite(v)&&v>0);
-  const height=Math.max(180,Math.round(heightCandidates.length?Math.min.apply(Math,heightCandidates):568));
+  const keyboardOpen=document.body.classList.contains('expense-keyboard-open');
+  // Без клавиатуры доверяем visualViewport: на iOS 14 innerHeight часто меньше
+  // реально доступной области и из-за Math.min итог не доходил до низа экрана.
+  // При клавиатуре, наоборот, берём минимальную высоту, чтобы кнопки не перекрывали поля.
+  const preferred=!keyboardOpen && viewport && Number(viewport.height)>0
+    ? Number(viewport.height)
+    : (heightCandidates.length?Math.min.apply(Math,heightCandidates):568);
+  const height=Math.max(180,Math.round(preferred));
   document.body.style.setProperty('--mobile-final-vh',height+'px');
+}
+function keepFinalExpenseInputVisible(input) {
+  if(!input)return;
+  const scroller=input.closest&&input.closest('.result-body');
+  if(!scroller)return;
+  const ir=input.getBoundingClientRect(),sr=scroller.getBoundingClientRect();
+  const safeTop=sr.top+8,safeBottom=sr.bottom-8;
+  if(ir.bottom>safeBottom)scroller.scrollTop+=ir.bottom-safeBottom;
+  else if(ir.top<safeTop)scroller.scrollTop-=safeTop-ir.top;
 }
 let finalExpenseViewportTimer=null;
 function setFinalExpenseKeyboardState(active, input) {
   if (window.innerWidth > 900) return;
   document.body.classList.toggle('expense-keyboard-open', !!active);
   if (active) {
-    if (!finalExpenseViewportTimer) finalExpenseViewportTimer=setInterval(syncMobileFinalViewport,100);
+    if (!finalExpenseViewportTimer) finalExpenseViewportTimer=setInterval(()=>{
+      syncMobileFinalViewport();
+      const focused=document.activeElement;
+      if(focused&&focused.matches&&focused.matches('[data-final-exp-key]'))keepFinalExpenseInputVisible(focused);
+    },100);
   } else if (finalExpenseViewportTimer) {
     clearInterval(finalExpenseViewportTimer);
     finalExpenseViewportTimer=null;
@@ -5894,15 +5936,9 @@ function setFinalExpenseKeyboardState(active, input) {
   }
   syncMobileFinalViewport();
   if (active && input) {
-    setTimeout(() => {
-      // Скроллим только таблицу расходов. scrollIntoView на iOS 14 прокручивал
-      // весь layout viewport и после клавиатуры оставлял карточку ниже экрана.
-      const scroller=input.closest && input.closest('.result-body');
-      if (scroller) {
-        const ir=input.getBoundingClientRect(), sr=scroller.getBoundingClientRect();
-        scroller.scrollTop += ir.top - sr.top - Math.max(8,(sr.height-ir.height)/2);
-      }
-    }, 80);
+    // Скроллим только таблицу расходов. scrollIntoView на iOS 14 прокручивал
+    // весь layout viewport и после клавиатуры оставлял карточку ниже экрана.
+    setTimeout(()=>keepFinalExpenseInputVisible(input),80);
   } else if (!active) {
     // После закрытия клавиатуры iOS сохраняет scrollY, созданный scrollIntoView,
     // и итог уезжает вниз. Возвращаем полноэкранную карточку к началу viewport.
@@ -6026,7 +6062,7 @@ function showInput(title, hint, placeholder, unit, callback, opts) {
     <div class="step-title">${title}</div>
     ${hint ? `<div class="step-hint">${hint}</div>` : ''}
     <div class="step-input-wrap">
-      <input class="step-input" type="text" inputmode="decimal" id="stepInput" placeholder="${placeholder}" value="${opts.value || ''}">
+      <input class="step-input" type="text" inputmode="decimal" id="stepInput" placeholder="" value="${opts.value || ''}">
       ${unit ? `<span class="step-input-unit">${unit}</span>` : ''}
       <button class="send-btn" id="stepSend">Далее →</button>
     </div>
@@ -6105,7 +6141,7 @@ function stepStart() {
       <div class="start-url-label">Ссылка на объявление Encar или che168</div>
       <div class="step-input-wrap start-url-row">
         <input class="step-input" type="url" id="startUrlInput"
-          placeholder="Вставьте ссылку Encar или che168"
+          placeholder=""
           value="${esc(savedUrl)}" autocomplete="off" autocorrect="off"
           autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true">
         <button class="send-btn start-url-send" type="button" id="startUrlSend">Загрузить →</button>
@@ -6208,7 +6244,7 @@ function stepUrl() {
     <div class="step-title">Ссылка на объявление</div>
     <div class="step-hint">Вставьте ссылку с <b>fem.encar.com</b> или <b>che168.com</b> —<br>заполним все параметры автоматически</div>
     <div class="step-input-wrap">
-      <input class="step-input" type="url" id="urlInput" placeholder="https://fem.encar.com/cars/detail/…" value="${esc(savedUrl)}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true">
+      <input class="step-input" type="url" id="urlInput" placeholder="" value="${esc(savedUrl)}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true">
       <button class="send-btn" id="urlSend">Загрузить →</button>
     </div>
     <div id="stepError"></div>
@@ -7455,6 +7491,12 @@ function advanceUrlLoadProgress(text) {
 }
 async function processUrl(url) {
   if (!url) { showError('Вставьте ссылку'); return; }
+  if (isNeocitiesRestrictedHost()) {
+    const message='Neocities запрещает внешние сетевые запросы политикой connect-src. Автозагрузка Encar/che168 на этом хостинге невозможна — используйте полную версию на Netlify или ручной расчёт.';
+    showError(message);
+    diagLog('error','url','host.csp-blocked',{host:location.hostname,reason:"Neocities CSP connect-src 'self'",url:String(url).slice(0,240)});
+    return;
+  }
   const site = detectSite(url);
   if (!site) { showError('Поддерживаются только encar.com и che168.com'); return; }
 
@@ -7871,7 +7913,7 @@ async function fetchViaProxy(url, timeoutMs, opts) {
 }
 
 // ═════════════════════════════════════════════════════════════════════
-// Получение картинки как Blob через CORS-прокси (для ZIP архива).
+// Получение оригинального файла изображения без перекодирования.
 // ═════════════════════════════════════════════════════════════════════
 async function fetchImageAsBlob(url) {
   for (const p of CORS_PROXIES) {
@@ -7886,102 +7928,119 @@ async function fetchImageAsBlob(url) {
   return null;
 }
 
-// Ленивая загрузка JSZip (3 CDN fallback) — только при клике на «Скачать фото»
-async function loadJSZip() {
-  if (window.JSZip) return window.JSZip;
-  const cdns = [
-    'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
-    'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js',
-    'https://unpkg.com/jszip@3.10.1/dist/jszip.min.js'
-  ];
-  for (const src of cdns) {
-    try {
-      await new Promise((res, rej) => {
-        const s = document.createElement('script');
-        s.src = src;
-        s.onload = res;
-        s.onerror = () => rej(new Error('CDN fail: ' + src));
-        document.head.appendChild(s);
-      });
-      if (window.JSZip) return window.JSZip;
-    } catch(e) { console.warn('[JSZip CDN]', e.message); }
-  }
-  throw new Error('Не удалось загрузить JSZip ни с одного CDN');
+// Экспорт оригинальных фотографий без ZIP и без перекодирования.
+function isMobilePhotoTarget() {
+  return window.innerWidth <= 900 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent || '');
 }
-
-// Скачать все фото объявления одним ZIP-архивом.
-// Работает и для Encar, и для che168 — берёт pd.photos (URLs) и пакует.
-async function downloadAllPhotosZip() {
-  const pd = state.parsedData;
-  if (!pd || !pd.photos || !pd.photos.length) {
-    alert('Нет фото для скачивания');
-    return;
+function photoFileMeta(url, index, blob) {
+  const fromUrl=(String(url).match(/\.([a-zA-Z0-9]{2,5})(?:[?#]|$)/)||[])[1]||'';
+  const mime=(blob&&blob.type)||'';
+  const byMime={
+    'image/jpeg':'jpg','image/jpg':'jpg','image/png':'png','image/webp':'webp',
+    'image/gif':'gif','image/heic':'heic','image/heif':'heif','image/avif':'avif','image/svg+xml':'svg'
+  }[mime.toLowerCase()];
+  const ext=(byMime||fromUrl||'jpg').toLowerCase().replace('jpeg','jpg');
+  return {ext,name:String(index+1).padStart(2,'0')+'.'+ext,type:mime||('image/'+(ext==='jpg'?'jpeg':ext))};
+}
+async function fetchOriginalPhotoBlob(url) {
+  // Сначала оригинальный URL. Если источник не даёт CORS — используем прокси,
+  // но никогда не прогоняем изображение через canvas и не меняем качество.
+  const urls=[String(url),...CORS_PROXIES.map(p=>p.fetch(url))];
+  for (const src of urls) {
+    try {
+      const resp=await fetch(src,{cache:'no-store'});
+      if(!resp.ok)continue;
+      const blob=await resp.blob();
+      const looksImage=/^image\//i.test(blob.type||'')||/\.(?:jpe?g|png|webp|gif|heic|heif|avif)(?:[?#]|$)/i.test(String(url));
+      if(blob.size>=16&&looksImage)return blob;
+    } catch(e) {}
   }
-  const btn = document.getElementById('downloadPhotosBtn');
-  const origHtml = btn ? btn.innerHTML : '';
-  const setStatus = (t) => { if (btn) btn.innerHTML = t; };
-  const restore = () => { if (btn) { btn.innerHTML = origHtml; btn.disabled = false; btn.style.opacity = ''; } };
-  if (btn) { btn.disabled = true; btn.style.opacity = '0.7'; }
-
-  setStatus('⏳ Загружаем JSZip…');
-  let JSZip;
-  try { JSZip = await loadJSZip(); }
-  catch(e) { alert('Ошибка: ' + e.message); restore(); return; }
-
-  const zip = new JSZip();
-  const total = pd.photos.length;
-  let ok = 0, fail = 0;
-
-  // Скачиваем параллельно по 4 — быстрее, но не грузим прокси
-  const queue = pd.photos.map((url, idx) => ({ url, idx }));
-  const CONCURRENCY = 4;
-  const workers = Array.from({ length: Math.min(CONCURRENCY, queue.length) }, async () => {
-    while (queue.length) {
-      const item = queue.shift();
-      if (!item) return;
-      try {
-        const extM = item.url.match(/\.(jpe?g|png|webp|gif)(?:\?|$)/i);
-        const ext = extM ? extM[1].toLowerCase() : 'jpg';
-        const blob = await fetchImageAsBlob(item.url);
-        if (blob) {
-          const num = String(item.idx + 1).padStart(2, '0');
-          zip.file(`${num}.${ext}`, blob);
-          ok++;
-        } else {
-          fail++;
-        }
-      } catch(e) { console.warn('[photo dl]', item.url, e.message); fail++; }
-      setStatus(`⏳ ${ok + fail}/${total}`);
+  return null;
+}
+async function loadOriginalPhotoFiles(photos, onProgress) {
+  const queue=photos.map((url,index)=>({url,index})),results=new Array(photos.length);
+  let done=0;
+  const workers=Array.from({length:Math.min(4,queue.length)},async()=>{
+    while(queue.length){
+      const item=queue.shift();if(!item)return;
+      const blob=await fetchOriginalPhotoBlob(item.url);
+      if(blob){
+        const meta=photoFileMeta(item.url,item.index,blob);
+        try { results[item.index]=new File([blob],meta.name,{type:meta.type,lastModified:Date.now()}); }
+        catch(e) { blob.name=meta.name;results[item.index]=blob; }
+      }
+      done++;if(onProgress)onProgress(done,photos.length);
     }
   });
   await Promise.all(workers);
-
-  if (ok === 0) {
-    alert('Не удалось скачать ни одного фото. Возможно, CORS-прокси недоступны — попробуйте позже.');
-    restore();
-    return;
+  return results.filter(Boolean);
+}
+function ensureOriginalPhotoGallery(photos) {
+  let modal=document.getElementById('originalPhotoGallery');
+  if(!modal){
+    modal=document.createElement('div');modal.id='originalPhotoGallery';
+    modal.innerHTML='<div class="original-photo-gallery-card"><div class="original-photo-gallery-head"><b>Оригинальные фотографии</b><button type="button" aria-label="Закрыть">×</button></div><div class="original-photo-gallery-hint">Нажмите и удерживайте фотографию, затем выберите «Сохранить в Фото».</div><div class="original-photo-gallery-grid"></div></div>';
+    document.body.appendChild(modal);
+    modal.querySelector('button').onclick=()=>modal.classList.remove('open');
+    modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('open')});
   }
-
-  setStatus('📦 Пакуем ZIP…');
-  try {
-    const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
-    // Имя архива: транслит title + дата
-    const title = (pd.title || 'photos').replace(/[^\w\-\s]/g, '').replace(/\s+/g, '_').slice(0, 60) || 'photos';
-    const dateStr = new Date().toISOString().slice(0, 10);
-    const filename = `${title}_${dateStr}.zip`;
-    const url = URL.createObjectURL(zipBlob);
-    const a = document.createElement('a');
-    a.href = url; a.download = filename;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
-    setStatus(`✅ Скачано ${ok}/${total}`);
-    setTimeout(restore, 3500);
-    if (fail > 0) console.warn(`[ZIP] ${fail} фото не загрузилось`);
-  } catch(e) {
-    alert('Ошибка создания архива: ' + e.message);
-    restore();
+  const grid=modal.querySelector('.original-photo-gallery-grid');
+  grid.innerHTML=photos.map((url,i)=>`<a href="${esc(url)}" target="_blank" rel="noopener"><img src="${esc(url)}" alt="Фото ${i+1}" loading="lazy"><span>${i+1}</span></a>`).join('');
+  modal.classList.add('open');
+  return modal;
+}
+async function saveOriginalPhotosToGallery() {
+  const pd=state.parsedData,photos=pd&&Array.isArray(pd.photos)?pd.photos.filter(Boolean):[];
+  if(!photos.length){alert('Нет фото для сохранения');return;}
+  const btn=document.getElementById('downloadPhotosBtn'),orig=btn?btn.innerHTML:'';
+  if(btn){btn.disabled=true;btn.style.opacity='.7'}
+  const status=t=>{if(btn)btn.innerHTML=t};
+  try{
+    status(`Загружаем оригиналы 0/${photos.length}`);
+    const files=await loadOriginalPhotoFiles(photos,(n,total)=>status(`Загружаем оригиналы ${n}/${total}`));
+    if(files.length&&navigator.share&&(!navigator.canShare||navigator.canShare({files}))){
+      status('Открываем галерею…');
+      await navigator.share({files,title:pd.title||'Фотографии автомобиля'});
+      status(`Готово: ${files.length} фото`);
+    }else{
+      // iOS 14.2 не всегда поддерживает передачу массива File в Share Sheet.
+      // Показываем оригиналы без сжатия с нативным сохранением долгим нажатием.
+      ensureOriginalPhotoGallery(photos);
+      status('Оригиналы открыты');
+    }
+  }catch(e){
+    if(e&&e.name==='AbortError'){status('Сохранение отменено');}
+    else{console.warn('[mobile photo export]',e);ensureOriginalPhotoGallery(photos);status('Оригиналы открыты');}
+  }finally{
+    setTimeout(()=>{if(btn){btn.innerHTML=orig;btn.disabled=false;btn.style.opacity=''}},1800);
   }
 }
+async function downloadOriginalPhotosToDesktop() {
+  const pd=state.parsedData,photos=pd&&Array.isArray(pd.photos)?pd.photos.filter(Boolean):[];
+  if(!photos.length){alert('Нет фото для скачивания');return;}
+  const btn=document.getElementById('downloadPhotosBtn'),orig=btn?btn.innerHTML:'';
+  if(btn){btn.disabled=true;btn.style.opacity='.7'}
+  const status=t=>{if(btn)btn.innerHTML=t};
+  try{
+    const files=await loadOriginalPhotoFiles(photos,(n,total)=>status(`Скачиваем оригиналы ${n}/${total}`));
+    if(!files.length)throw new Error('не удалось получить фотографии');
+    // Каждый файл отправляется в стандартные «Загрузки» браузера отдельно.
+    // Blob содержит исходные байты — архивирования и перекодирования нет.
+    for(let i=0;i<files.length;i++){
+      const file=files[i],url=URL.createObjectURL(file),a=document.createElement('a');
+      a.href=url;a.download=file.name||String(i+1).padStart(2,'0')+'.jpg';a.style.display='none';
+      document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),15000);
+      if(i<files.length-1)await new Promise(resolve=>setTimeout(resolve,140));
+    }
+    status(`Скачано без архива: ${files.length}`);
+  }catch(e){console.warn('[desktop photo export]',e);alert('Не удалось скачать оригиналы: '+e.message);}
+  finally{setTimeout(()=>{if(btn){btn.innerHTML=orig;btn.disabled=false;btn.style.opacity=''}},2200)}
+}
+function handlePhotoExport() {
+  return isMobilePhotoTarget()?saveOriginalPhotosToGallery():downloadOriginalPhotosToDesktop();
+}
+// Совместимость со старой кнопкой/сохранённой вкладкой: ZIP больше не создаётся.
+function downloadAllPhotosZip(){return handlePhotoExport()}
 
 // ═════════════════════════════════════════════════════════════════════
 // ПАРСЕР ENCAR — через открытый API (api.encar.com)
@@ -10268,7 +10327,7 @@ function stepYear() {
     <div class="step-title">Год выпуска?</div>
     <div class="step-hint">Год с завода — важно для расчёта возраста</div>
     <div class="step-input-wrap">
-      <input class="step-input" type="text" inputmode="numeric" id="ymYear" placeholder="2023" value="${yearVal}" maxlength="4">
+      <input class="step-input" type="text" inputmode="numeric" id="ymYear" placeholder="" value="${yearVal}" maxlength="4">
       <button class="send-btn" id="ymSend">Далее →</button>
     </div>
     <div id="stepError"></div>
@@ -10634,7 +10693,7 @@ function askMissingRates(missing) {
         <div class="miss-hint">${meta[k].hint}</div>
       </div>
       <div class="miss-input-wrap">
-        <input class="miss-input" type="text" inputmode="decimal" data-key="${k}" placeholder="${meta[k].ph}" value="">
+        <input class="miss-input" type="text" inputmode="decimal" data-key="${k}" placeholder="" value="">
         <span class="miss-unit">₽</span>
       </div>
     </div>
@@ -11067,31 +11126,48 @@ function finalExpenseRowsHTML(showCommissionNote = false) {
   };
   return Object.entries(state.expenses || {}).map(([key, value]) => {
     const note = showCommissionNote && key === 'commission' ? '<small>Свыше 150 000 ₽ автоматически переводится в валюту страны</small>' : '';
-    return `<tr class="editable-expense-row"><td>${labels[key] || key}${note}</td><td><label class="result-expense-control"><input type="text" inputmode="numeric" data-final-exp-key="${key}" value="${fmtN(value || 0)}" oninput="handleFinalExpenseInput(this)"><span>₽</span></label></td></tr>`;
+    return `<tr class="editable-expense-row"><td>${labels[key] || key}${note}</td><td><label class="result-expense-control"><input type="text" inputmode="numeric" data-final-exp-key="${key}" value="${fmtN(value || 0)}" onfocus="selectFinalExpenseInput(this)" onclick="selectFinalExpenseInput(this)" oninput="handleFinalExpenseInput(this)"><span>₽</span></label></td></tr>`;
   }).join('');
+}
+let finalExpenseRecalcTimer=null;
+function selectFinalExpenseInput(input) {
+  if(!input)return;
+  if(input.dataset.skipSelectOnce==='1'){delete input.dataset.skipSelectOnce;return;}
+  // На iOS выделение в самом focus часто сбрасывается завершающим touch/click.
+  // Небольшая задержка выделяет всю сумму уже после обработки касания.
+  setTimeout(()=>{
+    if(document.activeElement!==input)return;
+    try{input.setSelectionRange(0,input.value.length)}catch(e){try{input.select()}catch(_) {}}
+  },35);
 }
 function handleFinalExpenseInput(input) {
   const key = input && input.dataset.finalExpKey;
   if (!key) return;
   state.expenses[key] = Math.max(0, parseNum(input.value) || 0);
   saveAppState();
-  const cursor = input.selectionStart;
-  if (state.calcMode === 'reverse') {
-    const reverse = calculateReverseBudget();
-    if (reverse) renderReverseResult(reverse, key, cursor);
-  } else {
-    const result = computeResult();
-    const card = main.querySelector('.result-card');
-    if (result && card) {
-      card.innerHTML = renderResultCardOnly(result);
-      restoreFinalExpenseFocus(key, cursor);
+  clearTimeout(finalExpenseRecalcTimer);
+  // Не перестраиваем таблицу на каждый введённый символ: это было причиной,
+  // по которой Safari терял выделение и заставлял удалять сумму по одной цифре.
+  finalExpenseRecalcTimer=setTimeout(()=>{
+    const shouldRestore=document.activeElement===input;
+    if (state.calcMode === 'reverse') {
+      const reverse = calculateReverseBudget();
+      if (reverse) renderReverseResult(reverse,shouldRestore?key:null,null);
+    } else {
+      const result = computeResult();
+      const card = main.querySelector('.result-card');
+      if (result && card) {
+        card.innerHTML = renderResultCardOnly(result);
+        if(shouldRestore)restoreFinalExpenseFocus(key,null);
+      }
     }
-  }
+  },220);
 }
 function restoreFinalExpenseFocus(key, cursor) {
   requestAnimationFrame(() => {
     const el = main.querySelector(`[data-final-exp-key="${key}"]`);
     if (!el) return;
+    el.dataset.skipSelectOnce='1';
     try { el.focus({preventScroll:true}); } catch(e) { el.focus(); }
     const end = Math.min(typeof cursor === 'number' ? cursor : el.value.length, el.value.length);
     try { el.setSelectionRange(end, end); } catch(e) {}
@@ -12300,13 +12376,15 @@ function openReportPreview(event) {
     btn.innerHTML = 'Копировать отчёт';
     btn.disabled = false;
   }
-  // Кнопка «Скачать фото ZIP» — показываем только если у авто есть фото
+  // Экспорт оригинальных фото: мобильная галерея / отдельные загрузки на ПК.
   const zipBtn = document.getElementById('downloadPhotosBtn');
   if (zipBtn) {
     const nPhotos = (state.parsedData.photos || []).length;
     if (nPhotos > 0) {
       zipBtn.style.display = '';
-      zipBtn.innerHTML = `📦 Скачать фото (${nPhotos} шт., ZIP)`;
+      zipBtn.innerHTML = isMobilePhotoTarget()
+        ? `Сохранить в галерею (${nPhotos})`
+        : `Скачать оригиналы (${nPhotos})`;
       zipBtn.disabled = false;
       zipBtn.style.opacity = '';
     } else {
@@ -12429,5 +12507,5 @@ setInterval(saveAppState, 2000);
 })();
 </script>
 
-</body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1d2818f4e4d0cb1',t:'MTc4NDM4ODQwMA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
