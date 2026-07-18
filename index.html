@@ -4960,7 +4960,7 @@ function safeGet(k) { try { return localStorage.getItem(k); } catch(e) { return 
 function safeSet(k, v) { try { localStorage.setItem(k, v); } catch(e) { memStorage[k] = v; } }
 
 // ═════════════════ ПОСТОЯННЫЙ ДИАГНОСТИЧЕСКИЙ ЖУРНАЛ ═════════════════
-const DIAG_LOG_KEY='car_calc_diagnostic_log_v1',DIAG_LOG_LIMIT=1000;
+const DIAG_LOG_KEY='car_calc_diagnostic_log_v2',DIAG_LOG_LIMIT=1000;
 const DIAG_SESSION=(Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7));
 let diagSequence=0,diagRowsCache=null,diagFlushTimer=null;
 function diagSanitize(value,depth){
@@ -6016,7 +6016,7 @@ function renderStep(html, onReady) {
     document.body.classList.toggle('mobile-final-result', finalMobile);
     document.body.classList.toggle('initial-screen',initialScreen);
     const logsBtn=document.getElementById('diagnosticLogsBtn');
-    if(logsBtn)logsBtn.style.setProperty('display',initialScreen?'grid':'none','important');
+    if(logsBtn)logsBtn.style.setProperty('display','grid','important');
     if(initialScreen&&window.innerWidth<=420)autoCollapseRatesForSmallIphone();
     syncMobileFinalViewport();
     const summary=document.getElementById('summary');
@@ -6681,7 +6681,7 @@ async function raceDromProviders(url,providers,timeoutMs,requestId,phase){
 async function fetchDromGatewayText(url,timeoutMs){
   const requestId='drom-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,5),started=performance.now();diagLog('info','drom.gateway','request.start',{requestId,url});
   const direct={name:'direct',fetch:u=>u},primary=[direct,...CORS_PROXIES.filter(x=>/corsproxy\.io|allorigins/.test(x.name))],reserve=CORS_PROXIES.filter(x=>!/corsproxy\.io|allorigins/.test(x.name));
-  try{return await raceDromProviders(url,primary,Math.min(timeoutMs||4500,4500),requestId,'primary')}catch(e){try{return await raceDromProviders(url,reserve,Math.min(timeoutMs||3500,3500),requestId,'reserve')}catch(e2){diagLog('error','drom.gateway','request.failed',{requestId,url,totalMs:Math.round(performance.now()-started),error:String(e2&&e2.message||e2)});throw new Error('Drom gateway недоступен')}}
+  try{return await raceDromProviders(url,primary,Math.min(timeoutMs||4500,4500),requestId,'primary')}catch(e){try{return await raceDromProviders(url,reserve,Math.min(timeoutMs||3500,3500),requestId,'reserve')}catch(e2){diagLog('warn','drom.gateway','request.failed',{requestId,url,totalMs:Math.round(performance.now()-started),error:String(e2&&e2.message||e2)});throw new Error('Drom gateway недоступен')}}
 }
 async function lookupPowerFromDrom(vehicle) {
   const make=dromSlug(vehicle&&vehicle.manufacturer),model=dromModelSlug(vehicle),year=parseInt(vehicle&&vehicle.year);
@@ -7300,7 +7300,7 @@ function saveVerifiedPower(vehicle,result,reason){
     db[key]={hp:Number(result.hp),kw:Number(result.kw)||Number(result.hp)/1.35962,powerType:result.powerType||'engine_max',source:result.source||'Подтверждено',confidence:Number(result.confidence)||100,reason:reason||'точное совпадение',savedAt:Date.now(),lastUsedAt:Date.now(),hits:Number(db[key]&&db[key].hits)||0,vehicle:{manufacturer:vehicle.manufacturer||'',modelGroup:vehicle.modelGroup||'',model:vehicle.model||'',grade:vehicle.grade||'',engineCode:vehicle.engineCode||'',year:vehicle.year||0,cc:vehicle.cc||0,fuelType:vehicle.fuelType||''}};
     const keys=Object.keys(db).sort((a,b)=>(db[a].lastUsedAt||db[a].savedAt||0)-(db[b].lastUsedAt||db[b].savedAt||0));while(keys.length>1000)delete db[keys.shift()];
     safeSet(VERIFIED_POWER_DB_KEY,JSON.stringify(db));diagLog('info','power.verified-db','saved',{key,hp:result.hp,source:result.source,reason});
-  }catch(e){diagLog('error','power.verified-db','save.failed',{key,error:e.message});}
+  }catch(e){diagLog('warn','power.verified-db','save.failed',{key,error:e.message});}
 }
 function powerCacheKey(vehicle) {
   if (!vehicle) return '';
@@ -7473,7 +7473,7 @@ async function lookupPowerAutomatically(vehicle, options) {
 
   const err = new Error(errors.join('; ') || 'Не удалось однозначно определить мощность');
   err.powerResolutionMs = Math.round(performance.now() - startedAt);
-  diagLog('error','power','resolve.failed',{fingerprint,ms:err.powerResolutionMs,errors});
+  diagLog('warn','power','resolve.failed',{fingerprint,ms:err.powerResolutionMs,errors});
   throw err;
 }
 
@@ -12788,5 +12788,154 @@ setInterval(saveAppState, 2000);
 })();
 </script>
 
-</body>
+
+
+
+
+
+
+
+
+
+
+<!-- ═══ MOBILE FULL LOGGING OVERLAYS (GLOW INDICATOR) ═══ -->
+<button id="mobileFloatLogBtn" onclick="openDiagnosticLogs()" aria-label="Логи и диагностика" title="Логи и диагностика">
+  <span style="font-size:16px;">🐛</span>
+  <span>Логи</span>
+  <span class="mfl-badge" id="mobileLogErrBadge">0</span>
+</button>
+
+<style>
+@keyframes pulseRed {
+  0% { box-shadow: 0 0 0 0 rgba(232, 107, 107, 0.7); }
+  70% { box-shadow: 0 0 0 8px rgba(232, 107, 107, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(232, 107, 107, 0); }
+}
+
+@keyframes pulseRedText {
+  0% { text-shadow: 0 0 2px rgba(232, 107, 107, 0.4); color: #e86b6b; }
+  50% { text-shadow: 0 0 10px rgba(232, 107, 107, 0.9); color: #ff4d4d; }
+  100% { text-shadow: 0 0 2px rgba(232, 107, 107, 0.4); color: #e86b6b; }
+}
+.has-error-glow {
+  color: #e86b6b !important;
+  border-color: rgba(232, 107, 107, 0.5) !important;
+  animation: pulseRedText 2s infinite;
+}
+
+#mobileFloatLogBtn {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  z-index: 1500;
+  display: none;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #0f5b5c, #164e55);
+  color: #f6f0e3;
+  border: 1px solid rgba(255,255,255,0.4);
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 850;
+  box-shadow: 0 10px 25px rgba(15,91,92,0.4);
+  cursor: pointer;
+  transition: transform 0.2s, background 0.2s;
+}
+#mobileFloatLogBtn:active { transform: scale(0.95); }
+.mfl-badge {
+  background: #fff;
+  color: #c60c30;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  display: none;
+  font-weight: 900;
+}
+.mfl-badge.has-errors { display: inline-block; }
+@media (max-width: 900px) {
+  #mobileFloatLogBtn { display: flex !important; }
+}
+</style>
+<script>
+// Mobile Logging Enhancements & Glowing Indicator
+function updateMobileLogBadges() {
+  try {
+    const all = getDiagnosticLogs();
+    const errors = all.filter(x => x.level === 'error').length;
+    const badge = document.getElementById('mobileLogErrBadge');
+    const diagBtn = document.getElementById('diagnosticLogsBtn');
+    const floatBtn = document.getElementById('mobileFloatLogBtn');
+    
+    if (badge) {
+      badge.textContent = errors;
+      if (errors > 0) badge.classList.add('has-errors');
+      else badge.classList.remove('has-errors');
+    }
+    
+    if (diagBtn) {
+      if (errors > 0) diagBtn.classList.add('has-error-glow');
+      else diagBtn.classList.remove('has-error-glow');
+    }
+    
+    if (floatBtn) {
+      if (errors > 0) floatBtn.classList.add('has-error-glow');
+      else floatBtn.classList.remove('has-error-glow');
+    }
+  } catch(e) {}
+}
+
+const origDiagLog = window.diagLog;
+window.diagLog = function(level, scope, event, data) {
+  const res = origDiagLog ? origDiagLog(level, scope, event, data) : null;
+  updateMobileLogBadges();
+  return res;
+};
+
+// Fetch interceptor for full network logging (ignoring intentional race/timeout aborts & direct CORS blocks)
+const originalFetch = window.fetch;
+window.fetch = async function(...args) {
+  const url = args[0];
+  const urlStr = typeof url === 'string' ? url : (url && url.url ? url.url : 'unknown');
+  const started = performance.now();
+  diagLog('debug', 'network', 'fetch.start', { url: urlStr });
+  try {
+    const response = await originalFetch(...args);
+    const ms = Math.round(performance.now() - started);
+    diagLog(response.ok ? 'info' : 'warn', 'network', 'fetch.complete', {
+      url: urlStr,
+      status: response.status,
+      ok: response.ok,
+      ms
+    });
+    return response;
+  } catch (err) {
+    const ms = Math.round(performance.now() - started);
+    const errText = String(err.message || '');
+    const isAbort = err.name === 'AbortError' || errText.includes('abort') || errText.includes('timeout');
+    const isCorsFail = errText.includes('Failed to fetch') || errText.includes('NetworkError');
+    
+    const level = (isAbort || isCorsFail) ? 'debug' : 'error';
+    const eventName = isAbort ? 'fetch.aborted' : (isCorsFail ? 'fetch.cors-blocked' : 'fetch.failed');
+    diagLog(level, 'network', eventName, {
+      url: urlStr,
+      error: err.message,
+      ms
+    });
+    throw err;
+  }
+};
+
+window.addEventListener('DOMContentLoaded', function() {
+  updateMobileLogBadges();
+  diagLog('info', 'mobile', 'logger.initialized', {
+    userAgent: navigator.userAgent,
+    screenW: window.innerWidth,
+    screenH: window.innerHeight,
+    devicePixelRatio: window.devicePixelRatio
+  });
+});
+</script>
+
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1d3f4e319ba2e09',t:'MTc4NDQwMzYxMA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
