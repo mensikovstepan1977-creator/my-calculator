@@ -5608,7 +5608,7 @@ async function autoLoadAllRates() {
 }
 
 // ═════════════════ СТЕЙТ ═════════════════
-const APP_BUILD = '2026.07.18-SE-GALLERY-54';
+const APP_BUILD = '2026.07.18-ENCAR-JSON-55';
 const state = {
   country: null, year: null, month: null,
   engineType: null, cc: null, hp: null, kw: null, powerSource: null,
@@ -6335,6 +6335,32 @@ const CORS_PROXIES = [
 
 // Быстрая гонка прокси для необязательных каталогов. В отличие от
 // fetchViaProxy не ждёт каждый неработающий прокси последовательно.
+async function fetchJsonViaAnyProxy(url, timeoutMs, validator) {
+  timeoutMs=timeoutMs||8000;validator=typeof validator==='function'?validator:()=>true;
+  const requestId='json-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,5),providers=[{name:'direct',fetch:u=>u},...CORS_PROXIES];
+  const attempts=providers.map(p=>new Promise((resolve,reject)=>{
+    const ctrl=new AbortController(),timer=setTimeout(()=>{ctrl.abort();reject(new Error(p.name+': timeout'))},timeoutMs);
+    fetch(p.fetch(url),{cache:'no-store',signal:ctrl.signal}).then(async r=>{
+      if(!r.ok)throw new Error(p.name+': HTTP '+r.status);
+      const text=await r.text();let data;
+      try{data=JSON.parse(text)}catch(e){throw new Error(p.name+': ответ не JSON')}
+      // Некоторые прокси возвращают JSON-обёртку вместо сырого содержимого.
+      if(data&&typeof data==='object'&&typeof data.contents==='string'){
+        try{data=JSON.parse(data.contents)}catch(e){throw new Error(p.name+': contents не JSON')}
+      }else if(data&&typeof data==='object'&&typeof data.body==='string'&&('status' in data||'type' in data)){
+        try{data=JSON.parse(data.body)}catch(e){throw new Error(p.name+': body не JSON')}
+      }
+      if(!validator(data))throw new Error(p.name+': JSON не относится к автомобилю');
+      clearTimeout(timer);diagLog('info','network.json','provider.success',{requestId,provider:p.name,url});resolve(data);
+    }).catch(e=>{clearTimeout(timer);diagLog('debug','network.json','provider.fail',{requestId,provider:p.name,url,error:e.message});reject(e)})
+  }));
+  try{return await Promise.any(attempts)}catch(e){
+    const errors=(e&&e.errors||[]).map(x=>x&&x.message||String(x));
+    diagLog('error','network.json','race.failed',{requestId,url,errors});
+    throw new Error('Не удалось получить корректные данные Encar');
+  }
+}
+
 async function fetchViaAnyProxy(url, timeoutMs) {
   timeoutMs = timeoutMs || 6500;
   const requestId='net-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,5),started=performance.now();
@@ -7541,10 +7567,16 @@ async function processUrl(url) {
 
       // 1) Сначала получим основные данные (тут узнаем реальный ID и гос.номер)
       const mainStarted=performance.now();
-      const mainRes = await fetchViaAnyProxy('https://api.encar.com/v1/readside/vehicle/' + id, 8000);
-      diagLog('info','url.encar','main.loaded',{id,ms:Math.round(performance.now()-mainStarted),bytes:String(mainRes||'').length});
-      let mainObj;
-      try { mainObj = JSON.parse(mainRes); } catch(e) { throw new Error('Плохой JSON основных данных'); }
+      // Принимаем только проверенный JSON карточки. Раньше самый быстрый прокси
+      // мог вернуть HTML/страницу блокировки, гонка считала её успехом и показывала
+      // «Плохой JSON основных данных» даже при рабочем прямом API Encar.
+      const mainObj = await fetchJsonViaAnyProxy(
+        'https://api.encar.com/v1/readside/vehicle/' + id,
+        8000,
+        data=>!!(data&&typeof data==='object'&&(data.vehicleId||data.manage||data.category||data.vehicleNo))
+      );
+      const mainRes=JSON.stringify(mainObj);
+      diagLog('info','url.encar','main.loaded',{id,ms:Math.round(performance.now()-mainStarted),bytes:mainRes.length,verifiedJson:true});
       // Реальный ID = сам vehicleId в ответе (если старый URL — вернётся с реальным)
       const realId = mainObj.vehicleId || id;
       // vehicleNo нужен для запроса страховой истории (record)
@@ -12547,5 +12579,5 @@ setInterval(saveAppState, 2000);
 })();
 </script>
 
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1d29516f9270cb1',t:'MTc4NDM4OTIwMA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1d2a67ebe7a0cb1',t:'MTc4NDM4OTkxMw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
