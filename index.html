@@ -4271,6 +4271,20 @@ html{background:#eef3f7!important}
 .result-expense-control span{flex:0 0 auto;color:#526673;font-weight:800}
 .editable-expense-row td{background:linear-gradient(180deg,#fff,#f2f6f8)!important}
 
+/* ================================================================
+   ВЫРАВНИВАНИЕ КОЛОНОК СРАВНЕНИЯ (Корея ↔ Беларусь)
+   Невидимые строки-проставки выравнивают число строк обеих таблиц,
+   а syncSplitComparisonRows присваивает парным строкам одинаковую
+   высоту — благодаря этому все линии «Итого» лежат на одной
+   горизонтали в обеих колонках.
+   ================================================================ */
+.result-body tr.spacer-row{visibility:hidden!important}
+.result-body tr.spacer-row td{border-radius:0!important}
+@media(max-width:900px){
+  /* На мобильном колонки идут друг под другом — проставки не нужны. */
+  .result-body tr.spacer-row{display:none!important}
+}
+
 @media(min-width:901px){
   /* Both comparison columns begin on the same horizontal grid. */
   .result-split.has-split .result-card-header{
@@ -11375,16 +11389,22 @@ function calculateReverseBudget() {
     unitRate
   };
 }
-function finalExpenseRowsHTML(showCommissionNote = false) {
+function finalExpenseRowsHTML(showCommissionNote = false, withSplitSpacer = false) {
   const labels = {
     broker: 'Брокер',
     delivery: state.country === 'china' ? 'Доставка Уссурийск → клиент' : 'Доставка Владивосток → клиент',
     laboratory: 'Лаборатория',
     commission: 'Комиссия компании'
   };
-  return Object.entries(state.expenses || {}).map(([key, value]) => {
+  const entries = Object.entries(state.expenses || {});
+  return entries.map(([key, value], idx) => {
     const note = showCommissionNote && key === 'commission' ? '<small>Свыше 150 000 ₽ автоматически переводится в валюту страны</small>' : '';
-    return `<tr class="editable-expense-row"><td>${labels[key] || key}${note}</td><td><label class="result-expense-control"><input type="text" inputmode="numeric" data-final-exp-key="${key}" value="${fmtN(value || 0)}" onfocus="prepareFinalExpenseInput(this)" onbeforeinput="replaceFinalExpenseOnFirstInput(event,this)" oninput="handleFinalExpenseInput(this)" onblur="commitFinalExpenseInput(this)"><span>₽</span></label></td></tr>`;
+    // Сравнение с Беларусью: справа 4 строки «Логистика и услуги», слева — 3 расхода.
+    // Вставляем невидимую строку перед комиссией, чтобы число строк совпало,
+    // а обе строки «Комиссия компании» стояли на одной линии.
+    const alignSpacer = (withSplitSpacer && entries.length === 3 && idx === entries.length - 1)
+      ? `<tr class="spacer-row" aria-hidden="true"><td colspan="2">&nbsp;</td></tr>` : '';
+    return alignSpacer + `<tr class="editable-expense-row"><td>${labels[key] || key}${note}</td><td><label class="result-expense-control"><input type="text" inputmode="numeric" data-final-exp-key="${key}" value="${fmtN(value || 0)}" onfocus="prepareFinalExpenseInput(this)" onbeforeinput="replaceFinalExpenseOnFirstInput(event,this)" oninput="handleFinalExpenseInput(this)" onblur="commitFinalExpenseInput(this)"><span>₽</span></label></td></tr>`;
   }).join('');
 }
 let finalExpenseCommitTimer=null,finalExpenseDirty=false;
@@ -11447,6 +11467,7 @@ function commitFinalExpenseInput() {
     }else{
       const result=computeResult(),card=main.querySelector('.result-card');
       if(result&&card)card.innerHTML=renderResultCardOnly(result);
+      scheduleSplitRowsSync();
     }
   },120);
 }
@@ -11548,7 +11569,69 @@ function renderResult(result) {
   const html = `<div class="result-card">${renderResultCardOnly(result)}</div>`;
   renderStep(html);
   ensureMobileMainVisible();
+  scheduleSplitRowsSync();
 }
+
+/* ═══════════════ ВЫРАВНИВАНИЕ СТРОК КОЛОНОК СРАВНЕНИЯ (Корея ↔ Беларусь) ═══
+   В режиме has-split обе таблицы идут параллельно. Строки с одинаковым
+   индексом получают одинаковую высоту (максимум из двух), поэтому все линии
+   разбивки «Итого» лежат строго на одной горизонтали в обеих колонках.    */
+function syncSplitComparisonRows() {
+  const mainEl = document.getElementById('main');
+  if (!mainEl) return;
+  const split = mainEl.querySelector('.result-split.has-split');
+  if (!split) return;
+  const cols = Array.from(split.children).filter(el => el.classList && el.classList.contains('result-column'));
+  if (cols.length < 2) return;
+
+  const groups = cols.map(col => ({
+    header: col.querySelector('.result-card-header'),
+    subtitle: col.querySelector('.belarus-subtitle'),
+    rows: Array.from(col.querySelectorAll('.result-body table tr'))
+  }));
+
+  // 1) Сброс прошлых выравниваний — далее меряем естественные высоты.
+  // В CSS есть правило .result-body tr:not(.header){height:auto!important},
+  // поэтому высоту ставим через setProperty(..., 'important'): inline-!important
+  // сильнее stylesheet-!important.
+  const resetAlignment = () => groups.forEach(g => {
+    if (g.header) g.header.style.removeProperty('min-height');
+    if (g.subtitle) g.subtitle.style.removeProperty('min-height');
+    g.rows.forEach(tr => tr.style.removeProperty('height'));
+  });
+  resetAlignment();
+  if (window.innerWidth <= 900) return; // на мобильном колонки идут друг под другом
+
+  // 2) Шапки и подписи колонок — одинаковой высоты.
+  const equalize = nodes => {
+    const list = nodes.filter(Boolean);
+    if (list.length < 2) return;
+    let max = 0;
+    list.forEach(n => { max = Math.max(max, n.offsetHeight || 0); });
+    if (max > 0) list.forEach(n => { n.style.minHeight = Math.ceil(max) + 'px'; });
+  };
+  equalize(groups.map(g => g.header));
+  equalize(groups.map(g => g.subtitle));
+
+  // 3) Парные строки: высота = max(левая, правая) → линии совпадают.
+  const maxRows = Math.max.apply(null, groups.map(g => g.rows.length));
+  for (let i = 0; i < maxRows; i++) {
+    const pair = groups.map(g => g.rows[i]).filter(Boolean);
+    if (pair.length < 2) continue;
+    let max = 0;
+    pair.forEach(tr => { max = Math.max(max, tr.offsetHeight || 0); });
+    if (max > 0) pair.forEach(tr => { tr.style.setProperty('height', Math.ceil(max) + 'px', 'important'); });
+  }
+}
+let splitRowsSyncRaf = 0, splitRowsSyncT1 = 0, splitRowsSyncT2 = 0, splitRowsSyncT3 = 0;
+function scheduleSplitRowsSync() {
+  cancelAnimationFrame(splitRowsSyncRaf);
+  splitRowsSyncRaf = requestAnimationFrame(() => syncSplitComparisonRows());
+  clearTimeout(splitRowsSyncT1); splitRowsSyncT1 = setTimeout(syncSplitComparisonRows, 170);
+  clearTimeout(splitRowsSyncT2); splitRowsSyncT2 = setTimeout(syncSplitComparisonRows, 420);
+  clearTimeout(splitRowsSyncT3); splitRowsSyncT3 = setTimeout(syncSplitComparisonRows, 900);
+}
+window.addEventListener('resize', scheduleSplitRowsSync, { passive: true });
 
 function liveRecalc() {
   if (!state.isCalculated) return;
@@ -11576,6 +11659,7 @@ function liveRecalc() {
     // Заменяем только контент, чтобы не было animation
     const cardHTML = renderResultCardOnly(result);
     if (parent) parent.innerHTML = cardHTML;
+    scheduleSplitRowsSync();
     // Pop
     const t = document.getElementById('resultTotal');
     if (t) { t.classList.remove('changed'); void t.offsetWidth; t.classList.add('changed'); }
@@ -11605,10 +11689,12 @@ function renderResultCardOnly(result) {
   rows += `<tr><td>Утильсбор<small>${result.utilInfo.detail}</small></td><td>${fmtRub(result.util)}</td></tr>`;
   rows += `<tr><td>Таможенный сбор<small>За оформление декларации</small></td><td>${fmtRub(result.customsFeeRub)}</td></tr>`;
   rows += `<tr class="header section-expenses"><td colspan="2">Расходы — можно изменить</td></tr>`;
-  rows += finalExpenseRowsHTML();
   // Блок альтернативы «Через Беларусь» (только для Кореи, до 3 лет, не EV)
   const belarusHTML = result.belarusAlt ? renderBelarusAlt(result) : '';
   const hasSplit = !!belarusHTML;
+  // В режиме сравнения добавляем выравнивающую строку, чтобы обе таблицы
+  // имели одинаковое число строк и все линии совпадали по горизонтали.
+  rows += finalExpenseRowsHTML(false, hasSplit);
   // Основной блок РФ
   const mainBlock = `
     <div class="result-column result-main-col">
@@ -11672,7 +11758,7 @@ function renderBelarusAlt(result) {
   rows += `<tr class="header"><td colspan="2">Пошлина и утильсбор</td></tr>`;
   rows += `<tr><td>Пошлина физлицо (льгота 50%)<small>${alt.dutyInfo.detail}</small></td><td>${fmtRub(alt.dutyRub)}</td></tr>`;
   rows += `<tr><td>Утильсбор РФ<small>${alt.utilInfo.detail}</small></td><td>${fmtRub(alt.util)}</td></tr>`;
-  rows += `<tr class="spacer-row" style="visibility:hidden;height:42px;"><td colspan="2">&nbsp;</td></tr>`;
+  rows += `<tr class="spacer-row" aria-hidden="true"><td colspan="2">&nbsp;</td></tr>`;
   rows += `<tr class="header"><td colspan="2">Логистика и услуги</td></tr>`;
   rows += `<tr><td>Транзит через Беларусь</td><td>${fmtRub(alt.transitBY)}</td></tr>`;
   rows += `<tr><td>Владивосток → Москва</td><td>${fmtRub(alt.deliveryVlaMsk)}</td></tr>`;
@@ -12689,7 +12775,7 @@ function openReportPreview(event) {
   // Экспорт оригинальных фото: мобильная галерея / отдельные загрузки на ПК.
   const zipBtn = document.getElementById('downloadPhotosBtn');
   if (zipBtn) {
-    const nPhotos = (state.parsedData.photos || []).length;
+    const nPhotos = (state.parsedData && Array.isArray(state.parsedData.photos)) ? state.parsedData.photos.length : 0;
     if (nPhotos > 0) {
       zipBtn.style.display = '';
       if(isMobilePhotoTarget()){
@@ -12833,18 +12919,8 @@ setInterval(saveAppState, 2000);
 
 
 
-<!-- ═══ MOBILE FULL LOGGING OVERLAYS (GLOW INDICATOR) ═══ -->
-<button id="mobileFloatLogBtn" onclick="openDiagnosticLogs()" aria-label="Логи и диагностика" title="Логи и диагностика">
-  <span>📋 Логи</span>
-  <span class="mfl-badge" id="mobileLogErrBadge">0</span>
-</button>
-
+<!-- Логи доступны через ту же кнопку, что и на ПК (#diagnosticLogsBtn в верхней панели) -->
 <style>
-@keyframes pulseRed {
-  0% { box-shadow: 0 0 0 0 rgba(232, 107, 107, 0.7); }
-  70% { box-shadow: 0 0 0 8px rgba(232, 107, 107, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(232, 107, 107, 0); }
-}
 
 @keyframes pulseRedText {
   0% { text-shadow: 0 0 2px rgba(232, 107, 107, 0.4); color: #e86b6b; }
@@ -12857,43 +12933,6 @@ setInterval(saveAppState, 2000);
   animation: pulseRedText 2s infinite;
 }
 
-#mobileFloatLogBtn {
-  z-index: 999999 !important;
-  pointer-events: auto !important;
-  position: fixed;
-  bottom: 16px;
-  right: 16px;
-  z-index: 1500;
-  display: none;
-  align-items: center;
-  gap: 6px;
-  background: linear-gradient(135deg, #0f5b5c, #164e55);
-  color: #f6f0e3;
-  border: 1px solid rgba(255,255,255,0.4);
-  border-radius: 999px;
-  padding: 10px 16px;
-  font-size: 13px;
-  font-weight: 850;
-  box-shadow: 0 10px 25px rgba(15,91,92,0.4);
-  cursor: pointer;
-  transition: transform 0.2s, background 0.2s;
-}
-#mobileFloatLogBtn:active { transform: scale(0.95); }
-.mfl-badge {
-  background: #fff;
-  color: #c60c30;
-  font-size: 11px;
-  padding: 2px 6px;
-  border-radius: 999px;
-  display: none;
-  font-weight: 900;
-}
-.mfl-badge.has-errors { display: inline-block; }
-@media (max-width: 900px) {
-  #mobileFloatLogBtn {
-  z-index: 999999 !important;
-  pointer-events: auto !important; display: flex !important; }
-}
 
 @media (max-width: 900px) {
   .result-card-header {
@@ -12918,24 +12957,11 @@ function updateMobileLogBadges() {
   try {
     const all = getDiagnosticLogs();
     const errors = all.filter(x => x.level === 'error').length;
-    const badge = document.getElementById('mobileLogErrBadge');
     const diagBtn = document.getElementById('diagnosticLogsBtn');
-    const floatBtn = document.getElementById('mobileFloatLogBtn');
-    
-    if (badge) {
-      badge.textContent = errors;
-      if (errors > 0) badge.classList.add('has-errors');
-      else badge.classList.remove('has-errors');
-    }
-    
+
     if (diagBtn) {
       if (errors > 0) diagBtn.classList.add('has-error-glow');
       else diagBtn.classList.remove('has-error-glow');
-    }
-    
-    if (floatBtn) {
-      if (errors > 0) floatBtn.classList.add('has-error-glow');
-      else floatBtn.classList.remove('has-error-glow');
     }
   } catch(e) {}
 }
@@ -12992,5 +13018,36 @@ window.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1d421c4ea718dcb',t:'MTc4NDQwNTQ0OA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1d421c4ea718dcb',t:'MTc4NDQwNTQ0OA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><style>
+/* ================================================================
+   MOBILE POLISH · финальный слой для экранов ≤900px.
+   Карточка «Итого»: текст и контролы не прижимаются к краям;
+   верхняя панель: название не упирается в кнопки.
+   Размещено последним слоем специально после всех ранних правил.
+   ================================================================ */
+@media(max-width:900px){
+  .rates-panel .top-row{gap:10px !important}
+  .brand-title{min-width:0 !important}
+
+  /* Обычный (прокручиваемый) результат */
+  .result-card .result-card-header{padding-left:18px !important;padding-right:18px !important}
+  .result-card .result-body{padding-left:16px !important;padding-right:16px !important}
+  .result-card .result-body td{padding-left:8px !important;padding-right:8px !important}
+  .result-card .result-body tr.header td{padding-right:8px !important}
+  .result-card .belarus-subtitle{padding-left:18px !important;padding-right:18px !important}
+
+  /* Компактный полноэкранный результат (body.mobile-final-result) */
+  body.mobile-final-result .result-card-header{padding-left:16px !important;padding-right:16px !important}
+  body.mobile-final-result .belarus-subtitle{padding-left:16px !important;padding-right:16px !important}
+  body.mobile-final-result .result-body{padding-left:12px !important;padding-right:12px !important}
+  /* table-layout:fixed + первая строка с colspan=2 разрезала таблицу 50/50.
+     auto восстанавливает пропорции колонок по контенту (метка/значение). */
+  body.mobile-final-result .result-body table{table-layout:auto !important}
+  body.mobile-final-result .result-body td{padding-left:7px !important;padding-right:7px !important}
+  body.mobile-final-result .result-body tr.header td{padding-left:1px !important;padding-right:7px !important}
+  body.mobile-final-result .result-expense-control input{width:min(96px,100%) !important}
+  body.mobile-final-result .action-row{padding-left:7px !important;padding-right:7px !important}
+}
+</style>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1d476e789f48dcb',t:'MTc4NDQwODkzNQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
