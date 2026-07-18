@@ -11494,7 +11494,7 @@ function renderReverseResult(result, focusKey, cursor) {
         </div>
         <div class="result-icon">!</div>
       </div>
-      <div class="result-body"><table>
+      <div class="result-body"><table><colgroup><col class="rc-col-label"><col class="rc-col-value"></colgroup>
         <tr class="header section-expenses"><td colspan="2">Редактируемые расходы</td></tr>
         ${finalExpenseRowsHTML(true)}
       </table></div>`;
@@ -11508,7 +11508,7 @@ function renderReverseResult(result, focusKey, cursor) {
         </div>
         <div class="result-icon">₽</div>
       </div>
-      <div class="result-body"><table>
+      <div class="result-body"><table><colgroup><col class="rc-col-label"><col class="rc-col-value"></colgroup>
         <tr class="header section-budget"><td colspan="2">Раскладка для менеджера</td></tr>
         <tr><td>Бюджет клиента под ключ</td><td>${fmtRub(result.budget)}</td></tr>
         <tr><td>Максимальная цена авто<small>Цена автомобиля без излишка комиссии компании</small></td><td>${fmtSearchPrice(result.maxPrice)}</td></tr>
@@ -11633,6 +11633,41 @@ function scheduleSplitRowsSync() {
 }
 window.addEventListener('resize', scheduleSplitRowsSync, { passive: true });
 
+/* ── Мобильное сравнение «Корея ↔ Беларусь»: вертикальная лента вместо карусели ── */
+function scrollSplitColumn(btn, idx) {
+  const split = btn && btn.closest ? btn.closest('.result-split') : null;
+  if (!split) return;
+  const bar = split.querySelector('.split-compare-bar');
+  const cols = Array.prototype.filter.call(split.children, el => el.classList && el.classList.contains('result-column'));
+  const col = cols[idx || 0];
+  if (!col) return;
+  const barH = bar ? bar.offsetHeight : 0;
+  const top = col.getBoundingClientRect().top - split.getBoundingClientRect().top + split.scrollTop - barH - 6;
+  split.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+  // «Замок» чипа на время плавной прокрутки: скролл-синхронизация не
+  // переключает подсветку обратно на промежуточных позициях анимации.
+  split.__chipLock = idx;
+  clearTimeout(split.__chipLockT);
+  split.__chipLockT = setTimeout(() => { split.__chipLock = null; }, 1200);
+  if (bar) Array.prototype.forEach.call(bar.querySelectorAll('.scb-item'), (b, i) => b.classList.toggle('active', i === idx));
+}
+if (!window.__splitCompareScrollBound) {
+  window.__splitCompareScrollBound = true;
+  document.addEventListener('scroll', function (e) {
+    const split = (e.target && e.target.classList && e.target.classList.contains('result-split')) ? e.target : null;
+    if (!split || window.innerWidth > 900) return;
+    const bar = split.querySelector('.split-compare-bar');
+    if (!bar) return;
+    const cols = Array.prototype.filter.call(split.children, el => el.classList && el.classList.contains('result-column'));
+    if (!cols.length) return;
+    if (split.__chipLock !== null && split.__chipLock !== undefined) return;
+    const line = split.scrollTop + (bar.offsetHeight || 0) + 40;
+    let idx = 0;
+    cols.forEach((c, i) => { const t = c.getBoundingClientRect().top - split.getBoundingClientRect().top + split.scrollTop; if (t <= line) idx = i; });
+    Array.prototype.forEach.call(bar.querySelectorAll('.scb-item'), (b, i) => b.classList.toggle('active', i === idx));
+  }, { capture: true, passive: true });
+}
+
 function liveRecalc() {
   if (!state.isCalculated) return;
   const activeExpense=document.activeElement;
@@ -11709,10 +11744,25 @@ function renderResultCardOnly(result) {
         <div class="result-icon">${icons[state.country] || '🚗'}</div>
       </div>
       ${hasSplit ? '<div class="belarus-subtitle main-route-subtitle">Основной маршрут · оформление в России</div>' : ''}
-      <div class="result-body"><table>${rows}</table></div>
+      <div class="result-body"><table><colgroup><col class="rc-col-label"><col class="rc-col-value"></colgroup>${rows}</table></div>
     </div>`;
+  // Мобильная панель сравнения: цена «через Беларусь» видна сразу, без
+  // свайпа в невидимую вторую колонку карусели. ≤900px — липкая сверху.
+  let splitBar = '';
+  if (hasSplit && !result.belarusAlt.unavailable) {
+    const alt0 = result.belarusAlt;
+    const diff0 = result.grandTotal - alt0.grandTotal;
+    const isSave0 = diff0 > 0;
+    const pct0 = Math.abs(diff0 / result.grandTotal * 100);
+    splitBar = `
+      <div class="split-compare-bar">
+        <button type="button" class="scb-item active" onclick="scrollSplitColumn(this,0)"><span class="scb-flag">${flags[state.country]} ${names[state.country]}</span><b>${fmtRub(result.grandTotal)}</b></button>
+        <button type="button" class="scb-item scb-alt" onclick="scrollSplitColumn(this,1)"><span class="scb-flag">🇧🇾 Беларусь</span><b>${fmtRub(alt0.grandTotal)}</b><span class="scb-badge ${isSave0 ? 'belarus-saving' : 'belarus-loss'}">${isSave0 ? '−' : '+'}${fmtRub(Math.abs(diff0))} · ${pct0.toFixed(1)}%</span></button>
+      </div>`;
+  }
   return `
     <div class="result-split ${hasSplit ? 'has-split' : ''}">
+      ${splitBar}
       ${mainBlock}
       ${belarusHTML}
     </div>
@@ -11779,7 +11829,7 @@ function renderBelarusAlt(result) {
         <div class="result-icon belarus-icon">🇧🇾</div>
       </div>
       <div class="belarus-subtitle">На льготника (Указ №140 РБ) · пошлина ×0.5</div>
-      <div class="result-body"><table>${rows}</table></div>
+      <div class="result-body"><table><colgroup><col class="rc-col-label"><col class="rc-col-value"></colgroup>${rows}</table></div>
     </div>
   `;
 }
@@ -13049,5 +13099,97 @@ window.addEventListener('DOMContentLoaded', function() {
   body.mobile-final-result .action-row{padding-left:7px !important;padding-right:7px !important}
 }
 </style>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1d476e789f48dcb',t:'MTc4NDQwODkzNQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<style>
+/* ================================================================
+   MOBILE FINAL FIXES 2026-07-19 · края карточки, компактные расходы,
+   видимое сравнение «через Беларусь»
+   ================================================================ */
+.split-compare-bar{display:none}
+@media(max-width:900px){
+  /* Края: таблица возвращена в поток с паддингами 12px по бокам (вместо
+     absolute inset:…5px — пилюли строк упирались в бока карточки и
+     «съедались» её скруглением). Высота auto: строки больше не
+     растягиваются пропорционально экрану (расходы были 70–110px). */
+  body.mobile-final-result .result-body{
+    overflow-y:auto !important;overflow-x:hidden !important;-webkit-overflow-scrolling:touch !important;
+    padding:4px 12px 8px !important;
+  }
+  body.mobile-final-result .result-body table{
+    position:static !important;inset:auto !important;margin:0 !important;
+    width:100% !important;height:auto !important;
+    /* fixed + colgroup: колонки зафиксированы, контент (в т.ч. раздутые
+       системные шрифты) не может растянуть таблицу за пределы карточки. */
+    table-layout:fixed !important;
+    /* Разжали строки: больше воздуха между пилюлями. */
+    border-spacing:0 4px !important;
+  }
+  body.mobile-final-result .result-body tbody{height:auto !important}
+  body.mobile-final-result .result-body col.rc-col-label{width:66% !important}
+  body.mobile-final-result .result-body col.rc-col-value{width:34% !important}
+  body.mobile-final-result .result-body tr.header{height:auto !important}
+  body.mobile-final-result .result-body tr.header td{height:auto !important;padding:8px 7px 3px 1px !important}
+  /* Страховка: текст ячеек не вылезает наружу. */
+  body.mobile-final-result .result-body td{overflow:hidden !important;text-overflow:ellipsis !important}
+  body.mobile-final-result .result-body td{padding-top:6px !important;padding-bottom:6px !important}
+  body.mobile-final-result .result-body small{line-height:1.2 !important;margin-top:1px !important}
+
+  /* Строки расходов — компактнее (был min-height 40–42px + input 34px).
+     Освободившееся место равномерно уходит строкам пошлин выше. */
+  body.mobile-final-result .result-expense-control{min-height:0 !important;height:auto !important;gap:4px !important;max-width:100% !important}
+  body.mobile-final-result .result-expense-control input{
+    height:26px !important;min-height:26px !important;padding:2px 6px !important;font-size:13px !important;
+    /* Компактная гибкая ширина: до 78px, сжимается если колонка уже —
+       значок ₽ больше не обрезается. */
+    flex:0 1 78px !important;min-width:0 !important;width:auto !important;max-width:100% !important;
+  }
+  body.mobile-final-result .result-expense-control span{flex:0 0 auto !important}
+  body.mobile-final-result .editable-expense-row td:last-child{overflow:visible !important}
+  body.mobile-final-result .editable-expense-row td{padding-top:4px !important;padding-bottom:4px !important}
+
+  /* ── Сравнение «через Беларусь»: вертикальная лента вместо невидимой
+        горизонтальной карусели. Беларусь — обычным свайпом вниз. ── */
+  body.mobile-final-result .result-split.has-split{
+    flex-direction:column !important;overflow-x:hidden !important;overflow-y:auto !important;
+    scroll-snap-type:none !important;-webkit-overflow-scrolling:touch !important;
+  }
+  body.mobile-final-result .result-split.has-split .result-column{
+    flex:0 0 auto !important;width:100% !important;height:auto !important;min-height:0 !important;
+    scroll-snap-align:none !important;
+  }
+  body.mobile-final-result .result-split.has-split .result-main-col{border-bottom:1px solid rgba(7,17,31,.10) !important}
+  /* Шапки колонок — естественная высота (значок скидки Беларуси больше
+     не перекрывает границу шапки: была жёсткая 78px). */
+  body.mobile-final-result .result-split.has-split .result-card-header{
+    height:auto !important;min-height:0 !important;max-height:none !important;padding-bottom:8px !important;
+  }
+  body.mobile-final-result .result-split.has-split .result-body{
+    flex:0 0 auto !important;height:auto !important;overflow:visible !important;
+    padding:4px 12px 10px !important;position:relative !important;
+  }
+  body.mobile-final-result .result-split.has-split .result-body table{
+    position:static !important;inset:auto !important;width:100% !important;height:auto !important;
+  }
+
+  /* Липкая панель сравнения: обе цены всегда на экране, тап = прокрутка. */
+  .split-compare-bar{
+    display:flex;gap:7px;flex:0 0 auto;align-items:stretch;
+    padding:7px 10px 6px;position:sticky;top:0;z-index:6;
+    background:linear-gradient(180deg,#f7fafc,#e9eff3);
+    border-bottom:1px solid rgba(7,17,31,.08);
+  }
+  .scb-item{
+    flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    padding:7px 8px;border-radius:13px;border:1px solid #b7c4ce;
+    background:linear-gradient(180deg,#fff,#f1f5f8);
+    box-shadow:0 2px 6px rgba(60,82,104,.09),inset 0 1px 0 #fff;
+    font:inherit;color:#24323d;cursor:pointer;-webkit-tap-highlight-color:transparent;
+  }
+  .scb-item .scb-flag{font-size:9.5px;font-weight:850;color:#526673;line-height:1.05;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .scb-item b{font-size:14px;font-weight:950;letter-spacing:-.02em;line-height:1.05;white-space:nowrap}
+  .scb-item .scb-badge{font-size:9px;font-weight:900;line-height:1;padding:2px 7px;border-radius:999px;white-space:nowrap}
+  .scb-item.active{border-color:#76a9cf;box-shadow:0 0 0 2px rgba(118,173,210,.38),inset 0 1px 0 #fff}
+  .scb-item:active{transform:scale(.985)}
+}
+</style>
+</body>
 </html>
