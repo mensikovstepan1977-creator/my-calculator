@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build:2026-07-19-r2 report-footer-ios14 (css-sibling-fallback) -->
+<!-- build:2026-07-19-r3 orientation-resync + ios14 dvh-fallbacks -->
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
@@ -2500,7 +2500,7 @@ body::after{background:rgba(245,249,247,.10)!important}
 @media(max-width:900px){
   html{scroll-behavior:auto!important;background:#eef5f3}
   body{
-    width:100%!important;min-height:100dvh!important;margin:0!important;
+    width:100%!important;min-height:100vh!important;min-height:100dvh!important;margin:0!important;
     padding:8px!important;padding-top:max(8px,env(safe-area-inset-top))!important;
     padding-right:max(8px,env(safe-area-inset-right))!important;
     padding-bottom:max(12px,env(safe-area-inset-bottom))!important;
@@ -2627,7 +2627,7 @@ body::after{background:rgba(245,249,247,.10)!important}
 
   /* Dialog/report */
   .report-modal-bg{padding:max(8px,env(safe-area-inset-top)) 8px max(8px,env(safe-area-inset-bottom))!important}
-  .report-modal{width:100%!important;max-height:calc(100dvh - 16px)!important;border-radius:24px!important}
+  .report-modal{width:100%!important;max-height:calc(100vh - 16px)!important;max-height:calc(100dvh - 16px)!important;border-radius:24px!important}
   .report-modal-header,.report-modal-footer{padding:12px!important}
   .report-modal-body{padding:12px!important}
   .report-modal-footer{display:grid!important;grid-template-columns:1fr 1fr!important}
@@ -3080,13 +3080,13 @@ body::after{background:rgba(245,249,247,.10)!important}
 /* Persistent diagnostic log viewer */
 .diagnostic-modal{position:fixed;inset:0;z-index:2200;display:none;place-items:center;padding:14px;background:rgba(18,30,34,.42);backdrop-filter:blur(10px)}
 .diagnostic-modal.open{display:grid}
-.diagnostic-card{width:min(980px,100%);height:min(780px,calc(100dvh - 28px));display:flex;flex-direction:column;overflow:hidden;border:1px solid rgba(255,255,255,.82);border-radius:25px;background:rgba(249,250,248,.96);box-shadow:0 28px 90px rgba(22,45,50,.25)}
+.diagnostic-card{width:min(980px,100%);height:min(780px,calc(100vh - 28px));height:min(780px,calc(100dvh - 28px));display:flex;flex-direction:column;overflow:hidden;border:1px solid rgba(255,255,255,.82);border-radius:25px;background:rgba(249,250,248,.96);box-shadow:0 28px 90px rgba(22,45,50,.25)}
 .diagnostic-head{display:flex;align-items:center;justify-content:space-between;padding:15px 17px;border-bottom:1px solid rgba(31,74,82,.12)}
 .diagnostic-head>div{display:flex;flex-direction:column}.diagnostic-head b{font-size:18px}.diagnostic-head small{color:var(--summer-muted);font-size:10px}.diagnostic-head button{width:38px;height:38px;border:0;border-radius:50%;background:rgba(67,132,143,.12);font-size:23px;cursor:pointer}
 .diagnostic-toolbar{display:grid;grid-template-columns:180px 1fr;gap:8px;padding:10px 12px}.diagnostic-toolbar select,.diagnostic-toolbar input{min-width:0;height:42px;border:1px solid rgba(42,102,112,.18);border-radius:13px;background:#fff;padding:0 12px;font-size:12px;outline:0}
 .diagnostic-output{flex:1;min-height:0;margin:0 12px;padding:12px;overflow:auto;border:1px solid rgba(42,102,112,.12);border-radius:15px;background:#101b20;color:#d8ebe8;font:10.5px/1.48 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
 .diagnostic-actions{display:flex;gap:7px;padding:11px 12px}.diagnostic-actions button{flex:1;min-height:42px;border:0;border-radius:13px;background:#dcefed;color:#164e55;font-size:11px;font-weight:900;cursor:pointer}.diagnostic-actions .danger{background:#f7e2df;color:#8b3b31}
-@media(max-width:600px){.diagnostic-modal{padding:5px}.diagnostic-card{height:calc(100dvh - 10px);border-radius:19px}.diagnostic-toolbar{grid-template-columns:1fr}.diagnostic-output{font-size:9px}.diagnostic-actions{display:grid;grid-template-columns:1fr 1fr}.diagnostic-actions .danger{grid-column:1/-1}}
+@media(max-width:600px){.diagnostic-modal{padding:5px}.diagnostic-card{height:calc(100vh - 10px);height:calc(100dvh - 10px);border-radius:19px}.diagnostic-toolbar{grid-template-columns:1fr}.diagnostic-output{font-size:9px}.diagnostic-actions{display:grid;grid-template-columns:1fr 1fr}.diagnostic-actions .danger{grid-column:1/-1}}
 
 /* ================================================================
    MOBILE FINAL RESULT · one viewport including all action buttons
@@ -3095,9 +3095,9 @@ body::after{background:rgba(245,249,247,.10)!important}
   body.mobile-final-result{
     /* На iPhone CSS 100dvh иногда остаётся равным старой высоте после скрытия
        клавиатуры/панелей браузера. JS записывает сюда реальную visualViewport.height. */
-    height:var(--mobile-final-vh,100dvh)!important;
-    min-height:var(--mobile-final-vh,100dvh)!important;
-    max-height:var(--mobile-final-vh,100dvh)!important;
+    height:var(--mobile-final-vh,100vh)!important;
+    min-height:var(--mobile-final-vh,100vh)!important;
+    max-height:var(--mobile-final-vh,100vh)!important;
     overflow:hidden!important;
     padding:4px!important;
   }
@@ -3105,9 +3105,9 @@ body::after{background:rgba(245,249,247,.10)!important}
   body.mobile-final-result .summary-panel,
   body.mobile-final-result .history-panel{display:none!important}
   body.mobile-final-result .wrapper{
-    height:calc(var(--mobile-final-vh,100dvh) - 8px)!important;
-    min-height:calc(var(--mobile-final-vh,100dvh) - 8px)!important;
-    max-height:calc(var(--mobile-final-vh,100dvh) - 8px)!important;
+    height:calc(var(--mobile-final-vh,100vh) - 8px)!important;
+    min-height:calc(var(--mobile-final-vh,100vh) - 8px)!important;
+    max-height:calc(var(--mobile-final-vh,100vh) - 8px)!important;
     min-width:0!important;overflow:hidden!important
   }
   body.mobile-final-result .main{height:100%!important;min-height:0!important;max-height:100%!important;border-radius:20px!important;overflow:hidden!important}
@@ -3908,7 +3908,7 @@ body::before,body::after{display:none!important;background:none!important}
 .main:has(.ym-dropdown),.step-question:has(.ym-dropdown),.ym-dropdown{position:relative!important;z-index:200!important}
 .ym-dropdown.drop-up .ym-dd-menu{top:auto!important;bottom:calc(100% + 8px)!important}
 .ym-dd-menu{
-  z-index:10000!important;max-height:min(360px,calc(100dvh - 150px))!important;
+  z-index:10000!important;max-height:min(360px,calc(100vh - 150px))!important;max-height:min(360px,calc(100dvh - 150px))!important;
   overflow-y:auto!important;overscroll-behavior:contain!important;-webkit-overflow-scrolling:touch!important;
   border-radius:12px!important;background:#fff!important;border:1px solid #8d989e!important;
   box-shadow:0 12px 28px rgba(38,52,60,.28)!important
@@ -3918,9 +3918,9 @@ body::before,body::after{display:none!important;background:none!important}
 /* Report modal always sits above fixed mobile result and receives touch events. */
 #reportModal.open{
   display:grid!important;position:fixed!important;inset:0!important;z-index:99999!important;
-  width:100vw!important;height:100dvh!important;pointer-events:auto!important
+  width:100vw!important;height:100vh!important;height:100dvh!important;pointer-events:auto!important
 }
-body.mobile-final-result #reportModal.open{height:var(--mobile-final-vh,100dvh)!important}
+body.mobile-final-result #reportModal.open{height:var(--mobile-final-vh,100vh)!important}
 #openReportBtn{touch-action:manipulation!important;pointer-events:auto!important}
 /* Give the result table a definite height; Safari otherwise leaves blank space below rows. */
 body.mobile-final-result .result-body{position:relative!important;padding:0!important;overflow:hidden!important}
@@ -6037,7 +6037,15 @@ if (window.visualViewport) {
   window.visualViewport.addEventListener('scroll',refreshMobileViewportAndExpense,{passive:true});
 }
 window.addEventListener('resize',refreshMobileViewportAndExpense,{passive:true});
-window.addEventListener('orientationchange',()=>setTimeout(syncMobileFinalViewport,180),{passive:true});
+window.addEventListener('orientationchange',()=>{
+  // iOS обновляет размеры ступенями (анимация панелей) — пересчитываем
+  // несколько раз: вьюпорт, уплотнение результата и геометрию отчёта.
+  [130,400,850,1500].forEach(d=>setTimeout(()=>{
+    syncMobileFinalViewport();
+    scheduleSplitRowsSync();
+    scheduleOpenReportGeometrySync();
+  },d));
+},{passive:true});
 function renderStep(html, onReady) {
   const prev = main.firstElementChild;
   const shouldScrollMobile = !!prev && window.innerWidth <= 900;
@@ -12872,6 +12880,51 @@ function openReportPreview(event) {
   }
 }
 
+// ── Поворот устройства при открытом отчёте ──
+// Высота модалки зашита inline в px в момент открытия (страховка от :has()
+// и кэша CSS). После поворота экрана её нужно пересчитать, иначе низ окна
+// с кнопками остаётся за пределами видимой области (iOS 14.2).
+function syncOpenReportGeometry() {
+  const modal=document.getElementById('reportModal');
+  if(!modal||!modal.classList.contains('open'))return;
+  const viewport=window.visualViewport;
+  const h=Math.max(180,Math.round(viewport&&viewport.height||window.innerHeight||document.documentElement.clientHeight));
+  modal.style.setProperty('height',h+'px','important');
+  const card=modal.querySelector('.report-modal');
+  if(!card)return;
+  if(window.innerWidth>900){
+    card.style.setProperty('position','absolute','important');
+    card.style.setProperty('left','50%','important');
+    card.style.setProperty('top','50%','important');
+    card.style.setProperty('right','auto','important');
+    card.style.setProperty('bottom','auto','important');
+    card.style.setProperty('transform','translate(-50%,-50%)','important');
+    card.style.setProperty('margin','0','important');
+  }else{
+    // Мобильный полноэкранный режим: десктопное центрирование снимаем
+    // (важно после поворота планшета/крупного телефона через границу 900px).
+    ['position','left','top','right','bottom','transform','margin'].forEach(k=>card.style.removeProperty(k));
+  }
+}
+function scheduleOpenReportGeometrySync(){
+  syncOpenReportGeometry();
+  setTimeout(syncOpenReportGeometry,150);
+  setTimeout(syncOpenReportGeometry,450);
+  setTimeout(syncOpenReportGeometry,1000);
+  setTimeout(syncOpenReportGeometry,1800);
+}
+window.addEventListener('orientationchange',()=>setTimeout(scheduleOpenReportGeometrySync,120),{passive:true});
+window.addEventListener('resize',()=>{
+  clearTimeout(window.__reportGeomT);
+  window.__reportGeomT=setTimeout(syncOpenReportGeometry,130);
+},{passive:true});
+if(window.visualViewport){
+  window.visualViewport.addEventListener('resize',()=>{
+    clearTimeout(window.__reportGeomVvT);
+    window.__reportGeomVvT=setTimeout(syncOpenReportGeometry,130);
+  },{passive:true});
+}
+
 function closeReportPreview() {
   const modal=document.getElementById('reportModal');
   if (modal) {
@@ -13340,5 +13393,5 @@ window.addEventListener('DOMContentLoaded', function() {
   body.mobile-final-result .result-expense-control input{flex-basis:64px !important;font-size:12px !important}
 }
 </style>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1d52bf80fc98dcb',t:'MTc4NDQxNjM1Mg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1d834766a868d78',t:'MTc4NDQ0ODE1Nw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
