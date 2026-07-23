@@ -3671,7 +3671,12 @@ async function resolveStructuredPowerFast(vehicle,progress){
   // Для Che168 значение связано с официальным specId. Encar в большинстве
   // карточек мощности не публикует: найденное эвристикой число ниже может
   // быть только кандидатом и не участвует как «данные площадки».
-  if(!hybrid&&!encar&&validAutoPower(vehicle.hp))add('listing',vehicle.site==='che168'&&vehicle.specId?92:86,['площадка','модификация'],()=>({hp:vehicle.hp,kw:vehicle.kw,source:vehicle.powerSource||(vehicle.site==='che168'?'che168':'площадка')}));
+  const trustedEncarListing=encar&&vehicle.encarPowerTrust==='exact'&&vehicle.encarPowerField==='spec.maxPower'&&validAutoPower(vehicle.hp);
+  if(!hybrid&&validAutoPower(vehicle.hp)&&(!encar||trustedEncarListing)){
+    const listingConfidence=trustedEncarListing?92:(vehicle.site==='che168'&&vehicle.specId?92:86);
+    const listingEvidence=trustedEncarListing?['Encar API','spec.maxPower','текущая карточка']:['площадка','модификация'];
+    add('listing',listingConfidence,listingEvidence,()=>({hp:vehicle.hp,kw:vehicle.kw,source:vehicle.powerSource||(vehicle.site==='che168'?'che168':'площадка')}));
+  }
   if(!hybrid)add('open-db',88,['модель','год','объём','топливо'],()=>lookupPowerFromOpenDatabase(vehicle));
   // NHTSA — полезная сверка, но не единственный решающий источник для
   // корейского рынка: его покрытие и набор полей для таких VIN неполны.
@@ -4186,18 +4191,26 @@ async function processUrl(url) {
   // автоматическим расчётом. Для Che168 этот блок не применяется: там hp
   // связан с подтверждённым specId и текущий рабочий путь сохранён.
   let encarHeuristicCandidate=null;
-  if(site==='encar'&&!isSeriesElectricType(parsed.engineType)&&validAutoPower(parsed.hp)){
+  const trustedEncarExact=site==='encar'
+    &&parsed.encarPowerTrust==='exact'
+    &&parsed.encarPowerField==='spec.maxPower'
+    &&parsed.engineType!=='hybrid_parallel'
+    &&!isSeriesElectricType(parsed.engineType)
+    &&validAutoPower(parsed.hp);
+  if(site==='encar'&&!isSeriesElectricType(parsed.engineType)&&validAutoPower(parsed.hp)&&!trustedEncarExact){
     encarHeuristicCandidate={
       hp:Math.round(Number(parsed.hp)),
       kw:Number(parsed.kw)||Math.round((Number(parsed.hp)/1.35962)*100)/100,
       score:2,
       sources:['Encar · непроверенное поле'],
       variant:'Число найдено в данных объявления; требуется подтверждение каталога',
-      evidence:['Encar не публикует паспортную мощность в карточке']
+      evidence:['Поле Encar не подтверждено как spec.maxPower']
     };
     parsed.encarHeuristicPower={hp:encarHeuristicCandidate.hp,kw:encarHeuristicCandidate.kw,source:parsed.powerSource||'Encar'};
     parsed.hp=null;parsed.kw=null;parsed.powerSource='Encar · ожидает подтверждения мощности';
-    diagLog('info','power.encar','heuristic-demoted',{hp:encarHeuristicCandidate.hp,source:parsed.encarHeuristicPower.source,jatoVehicleId:parsed.jatoVehicleId||null});
+    diagLog('info','power.encar','heuristic-demoted',{hp:encarHeuristicCandidate.hp,field:parsed.encarPowerField||'',source:parsed.encarHeuristicPower.source,jatoVehicleId:parsed.jatoVehicleId||null});
+  }else if(trustedEncarExact){
+    diagLog('info','power.encar','exact-field-accepted',{hp:parsed.hp,field:parsed.encarPowerField,jatoVehicleId:parsed.jatoVehicleId||null});
   }
 
   // Автоматически определяем мощность для ДВС/гибридов с обеих площадок.
@@ -4994,6 +5007,7 @@ function parseEncarApi(mainJson, diagJson, inspJson, sourceUrl, recordJson) {
     mileage: null,
     fuelType: '', fuelRaw: '', engineType: 'ice',
     cc: null, hp: null, kw: null,
+    encarPowerField: '', encarPowerTrust: '',
     seatCount: null,
     vin: '', engineCode: '', plateNumber: '',
     color: '', transmission: '', bodyType: '',
@@ -5093,19 +5107,39 @@ function parseEncarApi(mainJson, diagJson, inspJson, sourceUrl, recordJson) {
   // Берём только явно названные поля мощности; объём по-прежнему только spec.displacement.
   if (!isSeriesElectricType(data.engineType)) {
     let encarHp = null;
+    // spec.maxPower — отдельное структурированное поле текущей карточки Encar.
+    // Для обычного ДВС/MHEV его можно сверять как значение площадки. Остальные
+    // вложенные поля и текст комплектации остаются только эвристикой.
     if (spec && spec.maxPower != null) {
       encarHp = parseEncarPowerHp(spec.maxPower, 'maxPower');
+      if (encarHp) {
+        data.encarPowerField = 'spec.maxPower';
+        data.encarPowerTrust = 'exact';
+      }
     }
-    if (!encarHp) encarHp = findEncarPowerValueSafely({ spec, performance: j.performance, engine: j.engine, category: cat, advertisement: ad });
+    if (!encarHp) {
+      encarHp = findEncarPowerValueSafely({ spec, performance: j.performance, engine: j.engine, category: cat, advertisement: ad });
+      if (encarHp) {
+        data.encarPowerField = 'nested-power-field';
+        data.encarPowerTrust = 'heuristic';
+      }
+    }
     if (!encarHp) {
       const gradeText = [cat.gradeEnglishName, cat.gradeDetailEnglishName, cat.gradeName, cat.gradeDetailName, cat.modelName, ad.oneLineText].filter(Boolean).join(' ');
       encarHp = extractHpFromGradeText(gradeText);
-      if (encarHp) diagLog('info','power.encar','grade-parsed',{hp:encarHp,grade:gradeText.slice(0,120)});
+      if (encarHp) {
+        data.encarPowerField = 'grade-text';
+        data.encarPowerTrust = 'heuristic';
+        diagLog('info','power.encar','grade-parsed',{hp:encarHp,grade:gradeText.slice(0,120)});
+      }
     }
     if (encarHp) {
       data.hp = encarHp;
       data.kw = Math.round((encarHp / 1.35962) * 100) / 100;
-      data.powerSource = 'Encar';
+      data.powerSource = data.encarPowerTrust === 'exact'
+        ? 'Encar · spec.maxPower'
+        : 'Encar · непроверенное поле';
+      diagLog('info','power.encar','field-detected',{hp:encarHp,field:data.encarPowerField,trust:data.encarPowerTrust});
     }
   }
 
