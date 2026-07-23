@@ -4741,46 +4741,22 @@ async function downloadOriginalPhotosToDesktop() {
   if(!photos.length){alert('Нет фото для скачивания');return;}
   const buttons=Array.from(document.querySelectorAll('#downloadPhotosBtn,.desktop-photo-export'));
   const originals=buttons.map(btn=>btn.innerHTML);
-  const activeBefore=document.activeElement;
-  const scrollY=window.scrollY||document.documentElement.scrollTop||document.body.scrollTop||0;
-  const mainScroll=document.querySelector('.main-scroll');
-  const mainScrollTop=mainScroll?mainScroll.scrollTop:0;
-  document.body.classList.add('photo-exporting');
-  const setStatus=t=>buttons.forEach(btn=>{btn.innerHTML=t});
-  buttons.forEach(btn=>{btn.disabled=true;btn.style.opacity='.7'});
+  buttons.forEach(btn=>{btn.disabled=true;btn.style.opacity='.7';});
   try{
-    const files=await loadOriginalPhotoFiles(photos,(n,total)=>setStatus(`Оригиналы ${n}/${total}`));
-    if(!files.length){
-      const errorMsg='не удалось получить фотографии. Проверьте интернет-соединение или попробуйте снова.';
-      throw new Error(errorMsg);
-    }
-    // Если загрузилось меньше чем ожидалось - показываем предупреждение но продолжаем
-    if(files.length<photos.length){
-      console.warn(`[desktop photo export] Загружено ${files.length} из ${photos.length} фото`);
-    }
-    // Все оригиналы уходят прямо в стандартные «Загрузки». Выбор папки и
-    // File System Access API намеренно не используются — поэтому системное
-    // сообщение «Невозможно открыть эту папку» больше появиться не может.
-    for(let i=0;i<files.length;i++){
-      const file=files[i],url=URL.createObjectURL(file),a=document.createElement('a');
-      a.href=url;a.download=file.name||String(i+1).padStart(2,'0')+'.jpg';a.tabIndex=-1;a.setAttribute('aria-hidden','true');a.style.display='none';
-      document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),15000);
-      if(i<files.length-1)await new Promise(resolve=>setTimeout(resolve,140));
-    }
-    setStatus(`Скачано фото: ${files.length}`);
-  }catch(e){console.warn('[desktop photo export]',e);alert('Не удалось скачать оригиналы: '+e.message);}
+    const files=await loadOriginalPhotoFiles(photos,(n,total)=>buttons.forEach(btn=>{btn.textContent=`Подготовка фото ${n}/${total}`;}));
+    if(!files.length)throw new Error('не удалось получить фотографии. Проверьте интернет-соединение или попробуйте снова.');
+    const folder=typeof originalPhotoFolderName==='function'?originalPhotoFolderName(pd):'Фото автомобиля';
+    const zip=await createStoreZip(files,folder);
+    const url=URL.createObjectURL(zip);
+    const link=document.createElement('a');
+    link.href=url;link.download=folder+'.zip';link.tabIndex=-1;link.setAttribute('aria-hidden','true');
+    link.style.cssText='position:fixed;left:-9999px;top:-9999px;width:1px;height:1px';
+    document.body.appendChild(link);link.click();link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),30000);
+    buttons.forEach(btn=>{btn.textContent=`Скачан ZIP: ${files.length} фото`;});
+  }catch(e){console.warn('[desktop photo export]',e);alert('Не удалось скачать фотографии: '+(e&&e.message||e));}
   finally{
-    setTimeout(()=>{
-      buttons.forEach((btn,i)=>{btn.innerHTML=originals[i];btn.disabled=false;btn.style.opacity='' });
-      document.body.classList.remove('photo-exporting');
-      // Возвращаем исходную позицию и фокус: браузер иногда прокручивает
-      // страницу при серии программных кликов по ссылкам загрузки.
-      try{
-        if(mainScroll) mainScroll.scrollTop=mainScrollTop;
-        window.scrollTo(0,scrollY);
-        if(activeBefore && activeBefore.isConnected && typeof activeBefore.focus==='function') activeBefore.focus({preventScroll:true});
-      }catch(e){}
-    },2200);
+    setTimeout(()=>buttons.forEach((btn,i)=>{btn.innerHTML=originals[i];btn.disabled=false;btn.style.opacity='';}),1800);
   }
 }
 function handlePhotoExport() {
@@ -7636,7 +7612,7 @@ function stepHP() {
     return;
   }
   const powerHint = state._powerLookupError
-    ? '<span class="power-search-status warning"><i></i> Нужен ручной ввод</span><span class="power-search-short">Мощность не подтверждена автоматически. Введите значение из ПТС.</span>'
+    ? '<span class="power-search-status warning"><i></i> Нужен ручной ввод</span> <span class="power-search-short">Мощность не подтверждена автоматически. Введите значение из ПТС.</span>'
     : 'кВт × 1.3596 = л.с.  (или наоборот: л.с. ÷ 1.3596 = кВт)';
   showInput(state.engineType==='hybrid_parallel'?'Максимальная мощность ДВС':'Мощность двигателя',
     state.engineType==='hybrid_parallel'?'Нужна отдельная мощность ДВС, не рекламная суммарная мощность гибридной системы. '+powerHint:powerHint,
