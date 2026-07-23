@@ -12532,5 +12532,28 @@ body.rates-collapsed .rates-panel{
   .rates-panel .rate-cell{padding-left:5px!important;padding-right:5px!important;gap:4px!important}
 }
 </style>
+<style id="modern-blue-v17-mobile-report-footer">
+@media (max-width:900px){
+  .report-modal-footer{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr)!important;
+    align-items:stretch!important;
+    justify-items:stretch!important;
+    gap:7px!important;
+  }
+  .report-modal-footer .action-btn,
+  .report-modal-footer #downloadPhotosBtn,
+  .report-modal-footer #copyReportBtn{
+    grid-column:1!important;
+    width:100%!important;
+    min-width:0!important;
+    max-width:none!important;
+    min-height:44px!important;
+    margin:0!important;
+    justify-self:stretch!important;
+    text-align:center!important;
+  }
+}
+</style>
 </body>
 </html>
